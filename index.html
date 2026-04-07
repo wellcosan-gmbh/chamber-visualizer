@@ -753,8 +753,11 @@
       // For GIF exports we optionally paint a keyed background color for transparency.
       // For preview we keep it actually transparent (checkerboard is CSS).
       if (appearance._keyBgColor) {
+        const prevOp = canvasCtx.globalCompositeOperation;
+        canvasCtx.globalCompositeOperation = 'copy';
         canvasCtx.fillStyle = appearance._keyBgColor;
         canvasCtx.fillRect(0, 0, w, h);
+        canvasCtx.globalCompositeOperation = prevOp;
       }
     } else {
       canvasCtx.fillStyle = bgColor || '#ffffff';
