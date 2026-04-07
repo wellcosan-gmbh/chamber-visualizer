@@ -594,7 +594,7 @@
     return outH;
   }
 
-  function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance, tBetween = 0) {
+  function drawFrame(canvasCtx, fromStep, toStep, w, h, transparent, appearance, tBetween = 0) {
     const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, smooth, easing } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
@@ -611,10 +611,9 @@
     const aRgb = hexToRgb(activeColor || '#7a1f5c');
     const iRgb = hexToRgb(inactiveColor || '#8d8d94');
     const eased = smooth ? applyEasing(easing, tBetween) : 0;
-    const nextStep = (stepIndex + 1) % nSteps;
     for (let c = 0; c < nCh; c++) {
-      const cur = grid[c][stepIndex % nSteps] ? 1 : 0;
-      const nxt = grid[c][nextStep] ? 1 : 0;
+      const cur = grid[c][fromStep % nSteps] ? 1 : 0;
+      const nxt = grid[c][toStep % nSteps] ? 1 : 0;
       const v = lerp(cur, nxt, eased);
       const x = startX + c * (pw + g);
 
@@ -707,7 +706,7 @@
     syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
-    drawFrame(ctx, step, w, h, transparent, a, 0);
+    drawFrame(ctx, step, step, w, h, transparent, a, 0);
   }
 
   function tick(ts) {
@@ -719,18 +718,20 @@
       return;
     }
     if (!lastT) lastT = ts;
-    const dt = ts - lastT;
-    const t = (dt % ms) / ms;
-    const step = seq[previewStep % seq.length];
+    // Keep a stable phase to avoid boundary flicker.
+    while (ts - lastT >= ms) {
+      lastT += ms;
+      previewStep = (previewStep + 1) % seq.length;
+    }
+    const t = (ts - lastT) / ms;
+    const idx = previewStep % seq.length;
+    const step = seq[idx];
+    const next = seq[(idx + 1) % seq.length];
     const a = readAppearance();
     const transparent = el('transparent').checked;
     preview.classList.toggle('transparent-bg', transparent);
     syncPreviewSize();
-    drawFrame(ctx, step, preview.width, preview.height, transparent, a, t);
-    if (dt >= ms) {
-      lastT = ts;
-      previewStep = (previewStep + 1) % seq.length;
-    }
+    drawFrame(ctx, step, next, preview.width, preview.height, transparent, a, t);
     requestAnimationFrame(tick);
   }
 
@@ -791,13 +792,15 @@
     if (easingRow) easingRow.style.display = smooth ? 'block' : 'none';
     const subFrames = smooth ? 4 : 1;
     const subDelay = Math.max(10, Math.round(frameMs / subFrames));
-    seq.forEach((stepIdx) => {
+    for (let si = 0; si < seq.length; si++) {
+      const from = seq[si];
+      const to = seq[(si + 1) % seq.length];
       for (let i = 0; i < subFrames; i++) {
         const t = subFrames === 1 ? 0 : (i / subFrames);
-        drawFrame(octx, stepIdx, outW, outH, transparent, appearance, t);
+        drawFrame(octx, from, to, outW, outH, transparent, appearance, t);
         gif.addFrame(octx, { copy: true, delay: subDelay });
       }
-    });
+    }
 
     const mode = el('loopMode').value;
     gif.setOption('repeat', mode === 'once' ? -1 : 0);
