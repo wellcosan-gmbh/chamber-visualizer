@@ -318,8 +318,8 @@
         <div class="row">
           <label>Export quality</label>
           <select id="exportQuality">
-            <option value="fast" selected>Fast (recommended)</option>
-            <option value="balanced">Balanced</option>
+            <option value="fast">Fast</option>
+            <option value="balanced" selected>Balanced (recommended)</option>
             <option value="high">High</option>
           </select>
           <div class="hint">Higher quality can be slower.</div>
@@ -339,6 +339,7 @@
         <div class="row">
           <label>Background color</label>
           <input type="color" id="bgColor" value="#ffffff" />
+          <div class="hint">If Transparent background is enabled, this color is used as the matte (prevents pink edges).</div>
         </div>
       </div>
     </details>
@@ -369,6 +370,17 @@
             <option value="balanced" selected>Balanced</option>
             <option value="compact">Compact</option>
             <option value="airy">Airy</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Color scheme</label>
+          <select id="colorScheme">
+            <option value="berry" selected>Berry</option>
+            <option value="mono">Mono</option>
+            <option value="ocean">Ocean</option>
+            <option value="forest">Forest</option>
+            <option value="sunset">Sunset</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -909,18 +921,21 @@
     off.height = outH;
     const octx = off.getContext('2d', { willReadFrequently: true });
 
-    const q = (el('exportQuality') && el('exportQuality').value) ? el('exportQuality').value : 'fast';
-    const quality = q === 'high' ? 6 : q === 'balanced' ? 10 : 16; // lower = better quality, slower
+    const q = (el('exportQuality') && el('exportQuality').value) ? el('exportQuality').value : 'balanced';
+    // gif.js: lower "quality" => better, slower.
+    const quality = q === 'high' ? 5 : q === 'balanced' ? 8 : 12;
     const workers = q === 'high' ? 2 : 4;
 
-    const keyBgHex = '#ff00ff';
-    const keyBg = 0xff00ff;
+    const matteHex = (el('bgColor') && el('bgColor').value) ? el('bgColor').value : '#ffffff';
+    const keyBgHex = matteHex;
+    const keyBg = parseInt(String(matteHex).replace('#', ''), 16);
     const gif = new GIF({
       workers,
       quality,
       width: outW,
       height: outH,
       workerScript: GIF_WORKER,
+      dither: false,
       ...(transparent ? { transparent: keyBg, background: keyBgHex } : {}),
     });
 
@@ -1022,6 +1037,22 @@
     if (block) block.style.display = preset === 'custom' ? 'block' : 'none';
   }
 
+  const COLOR_SCHEMES = {
+    berry:   { active: '#7a1f5c', inactive: '#8d8d94', bg: '#ffffff' },
+    mono:    { active: '#2a2f3a', inactive: '#a3a7b2', bg: '#ffffff' },
+    ocean:   { active: '#0f5ea8', inactive: '#9aa6b2', bg: '#ffffff' },
+    forest:  { active: '#1d6b4d', inactive: '#97a39b', bg: '#ffffff' },
+    sunset:  { active: '#c2410c', inactive: '#9a9aa1', bg: '#ffffff' },
+  };
+
+  function applyColorScheme(id) {
+    const scheme = COLOR_SCHEMES[id];
+    if (!scheme) return;
+    if (el('activeColor')) el('activeColor').value = scheme.active;
+    if (el('inactiveColor')) el('inactiveColor').value = scheme.inactive;
+    if (el('bgColor')) el('bgColor').value = scheme.bg;
+  }
+
 
   el('chambers').addEventListener('input', () => {
     const v = +el('chambers').value;
@@ -1077,6 +1108,9 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
       if (id === 'nameHasSequence') syncFileExt();
+      if (id === 'activeColor' || id === 'inactiveColor' || id === 'bgColor') {
+        if (el('colorScheme')) el('colorScheme').value = 'custom';
+      }
       drawPreview(previewStep);
     });
     el(id).addEventListener('change', () => {
@@ -1087,6 +1121,9 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
       if (id === 'nameHasSequence') syncFileExt();
+      if (id === 'activeColor' || id === 'inactiveColor' || id === 'bgColor') {
+        if (el('colorScheme')) el('colorScheme').value = 'custom';
+      }
       drawPreview(previewStep);
     });
   });
@@ -1121,6 +1158,14 @@
     });
   }
 
+  if (el('colorScheme')) {
+    el('colorScheme').addEventListener('input', () => {
+      const v = el('colorScheme').value;
+      if (v !== 'custom') applyColorScheme(v);
+      drawPreview(previewStep);
+    });
+  }
+
   initGrid();
   applyPreset('sequential');
   syncChamberStepLabels();
@@ -1131,6 +1176,7 @@
   applyStylePreset('balanced');
   syncStyleUi();
   syncEasingUi();
+  applyColorScheme('berry');
   requestAnimationFrame(tick);
 })();
   </script>
