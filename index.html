@@ -275,6 +275,10 @@
           <label>Frame duration (ms)</label>
           <input type="number" id="frameMs" min="40" max="800" step="10" value="120" />
         </div>
+        <div class="row check-row">
+          <input type="checkbox" id="smooth" checked />
+          <label for="smooth" style="margin:0">Smooth transitions</label>
+        </div>
         <div class="row">
           <label>Loop mode</label>
           <select id="loopMode">
@@ -488,7 +492,36 @@
       indicatorH: el('indicatorH') ? (+el('indicatorH').value || 0.68) : 0.68,
       indicatorW: el('indicatorW') ? (+el('indicatorW').value || 0.28) : 0.28,
       spacing: el('spacing') ? (+el('spacing').value || 0.55) : 0.55,
+      smooth: el('smooth') ? !!el('smooth').checked : true,
     };
+  }
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInOutCubic(t) {
+    const x = clamp01(t);
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function hexToRgb(hex) {
+    const h = String(hex || '').replace('#', '').trim();
+    if (h.length === 3) {
+      const r = parseInt(h[0] + h[0], 16);
+      const g = parseInt(h[1] + h[1], 16);
+      const b = parseInt(h[2] + h[2], 16);
+      return { r, g, b };
+    }
+    if (h.length !== 6) return { r: 0, g: 0, b: 0 };
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+  function rgbToCss({ r, g, b }) {
+    const rr = Math.max(0, Math.min(255, Math.round(r)));
+    const gg = Math.max(0, Math.min(255, Math.round(g)));
+    const bb = Math.max(0, Math.min(255, Math.round(b)));
+    return 'rgb(' + rr + ',' + gg + ',' + bb + ')';
   }
 
   function computeGeometry(w, h, appearance) {
@@ -537,8 +570,8 @@
     return outH;
   }
 
-  function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance) {
-    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt } = appearance;
+  function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance, tBetween = 0) {
+    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, smooth } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
     if (!transparent) {
@@ -551,11 +584,17 @@
 
     canvasCtx.save();
     const offScale = 0.35;
+    const aRgb = hexToRgb(activeColor || '#7a1f5c');
+    const iRgb = hexToRgb(inactiveColor || '#8d8d94');
+    const eased = smooth ? easeInOutCubic(tBetween) : 0;
+    const nextStep = (stepIndex + 1) % nSteps;
     for (let c = 0; c < nCh; c++) {
-      const on = grid[c][stepIndex % nSteps];
+      const cur = grid[c][stepIndex % nSteps] ? 1 : 0;
+      const nxt = grid[c][nextStep] ? 1 : 0;
+      const v = lerp(cur, nxt, eased);
       const x = startX + c * (pw + g);
 
-      const k = on ? 1 : offScale;
+      const k = offScale + (1 - offScale) * v;
       const baseSize = Math.min(pw, pillH) * k;
       const isSquare = pillShape === 'square';
       const isRound = pillShape === 'round';
@@ -571,7 +610,7 @@
         baseR; // pill
 
       canvasCtx.save();
-      if (on) {
+      if (v > 0.01) {
         canvasCtx.shadowColor = 'rgba(0,0,0,0.18)';
         canvasCtx.shadowBlur = Math.max(6, w2 * 0.22);
         canvasCtx.shadowOffsetX = 0;
@@ -600,8 +639,13 @@
       } else {
         canvasCtx.roundRect(x2, y2, w2, h2, r2);
       }
-      canvasCtx.fillStyle = on ? (activeColor || '#7a1f5c') : (inactiveColor || '#8d8d94');
-      canvasCtx.globalAlpha = on ? 1 : 0.95;
+      const col = {
+        r: lerp(iRgb.r, aRgb.r, v),
+        g: lerp(iRgb.g, aRgb.g, v),
+        b: lerp(iRgb.b, aRgb.b, v),
+      };
+      canvasCtx.fillStyle = rgbToCss(col);
+      canvasCtx.globalAlpha = 0.95 + 0.05 * v;
       canvasCtx.fill();
 
       canvasCtx.restore();
@@ -639,20 +683,29 @@
     syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
-    drawFrame(ctx, step, w, h, transparent, a);
+    drawFrame(ctx, step, w, h, transparent, a, 0);
   }
 
   function tick(ts) {
     const ms = +el('frameMs').value || 120;
-    if (ts - lastT >= ms) {
+    const seq = buildFrameSequence();
+    if (seq.length === 0) {
+      drawPreview(0);
+      requestAnimationFrame(tick);
+      return;
+    }
+    if (!lastT) lastT = ts;
+    const dt = ts - lastT;
+    const t = (dt % ms) / ms;
+    const step = seq[previewStep % seq.length];
+    const a = readAppearance();
+    const transparent = el('transparent').checked;
+    preview.classList.toggle('transparent-bg', transparent);
+    syncPreviewSize();
+    drawFrame(ctx, step, preview.width, preview.height, transparent, a, t);
+    if (dt >= ms) {
       lastT = ts;
-      const seq = buildFrameSequence();
-      if (seq.length === 0) {
-        drawPreview(0);
-      } else {
-        drawPreview(seq[previewStep]);
-        previewStep = (previewStep + 1) % seq.length;
-      }
+      previewStep = (previewStep + 1) % seq.length;
     }
     requestAnimationFrame(tick);
   }
@@ -709,9 +762,15 @@
     const appearance = readAppearance();
 
     status.textContent = 'Rendering frames… (0/' + seq.length + ')';
+    const smooth = appearance.smooth;
+    const subFrames = smooth ? 4 : 1;
+    const subDelay = Math.max(10, Math.round(frameMs / subFrames));
     seq.forEach((stepIdx) => {
-      drawFrame(octx, stepIdx, outW, outH, transparent, appearance);
-      gif.addFrame(octx, { copy: true, delay: frameMs });
+      for (let i = 0; i < subFrames; i++) {
+        const t = subFrames === 1 ? 0 : (i / subFrames);
+        drawFrame(octx, stepIdx, outW, outH, transparent, appearance, t);
+        gif.addFrame(octx, { copy: true, delay: subDelay });
+      }
     });
 
     const mode = el('loopMode').value;
@@ -770,14 +829,14 @@
   function applyStylePreset(name) {
     const preset = name || 'balanced';
     const map = {
-      compact:  { spacing: 0.25 },
-      balanced: { spacing: 0.45 },
-      airy:     { spacing: 0.65 },
+      compact:  { indicatorH: 0.66, indicatorW: 0.26, spacing: 0.22 },
+      balanced: { indicatorH: 0.68, indicatorW: 0.28, spacing: 0.38 },
+      airy:     { indicatorH: 0.70, indicatorW: 0.27, spacing: 0.55 },
     };
     const v = map[preset];
     if (!v) return;
-    if (el('indicatorH')) el('indicatorH').value = '0.68';
-    if (el('indicatorW')) el('indicatorW').value = '0.28';
+    if (el('indicatorH')) el('indicatorH').value = String(v.indicatorH);
+    if (el('indicatorW')) el('indicatorW').value = String(v.indicatorW);
     if (el('spacing')) el('spacing').value = String(v.spacing);
   }
 
@@ -832,7 +891,7 @@
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
-    'frameMs', 'transparent', 'loopMode',
+    'frameMs', 'smooth', 'transparent', 'loopMode',
     'aspect', 'outW', 'exportQuality',
   ].forEach((id) => {
     if (!el(id)) return;
