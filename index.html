@@ -227,6 +227,24 @@
         </div>
         <h2>Pill appearance</h2>
         <div class="row">
+          <label>Mode</label>
+          <select id="uiMode">
+            <option value="simple" selected>Simple</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div id="simpleBlock">
+          <div class="row">
+            <label>Style preset</label>
+            <select id="stylePreset">
+              <option value="balanced" selected>Balanced</option>
+              <option value="compact">Compact</option>
+              <option value="airy">Airy</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
           <label>Active color</label>
           <input type="color" id="activeColor" value="#7a1f5c" />
         </div>
@@ -243,21 +261,28 @@
             <option value="parallelogram">Parallelogram</option>
           </select>
         </div>
+        <details id="advancedBlock" style="margin: 0 0 0.75rem; display:none">
+          <summary style="cursor:pointer; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.5rem;">Advanced</summary>
+          <div class="row">
+            <label>Tilt (deg) <span id="tiltVal"></span></label>
+            <input type="range" id="pillTilt" min="-35" max="35" value="0" />
+          </div>
+          <div class="row">
+            <label>Indicator height (% of inner height)</label>
+            <input type="range" id="indicatorH" min="0.2" max="0.95" step="0.01" value="0.68" />
+          </div>
+          <div class="row">
+            <label>Indicator thickness (% of height)</label>
+            <input type="range" id="indicatorW" min="0.12" max="0.6" step="0.01" value="0.28" />
+          </div>
+          <div class="row">
+            <label>Spacing (% of height)</label>
+            <input type="range" id="spacing" min="0" max="1.4" step="0.02" value="0.55" />
+          </div>
+        </details>
         <div class="row">
-          <label>Tilt (deg) <span id="tiltVal"></span></label>
-          <input type="range" id="pillTilt" min="-35" max="35" value="0" />
-        </div>
-        <div class="row">
-          <label>Indicator height</label>
-          <input type="range" id="indicatorH" min="0.2" max="0.95" step="0.01" value="0.68" />
-        </div>
-        <div class="row">
-          <label>Indicator weight</label>
-          <input type="range" id="indicatorW" min="0.12" max="0.6" step="0.01" value="0.28" />
-        </div>
-        <div class="row">
-          <label>Spacing</label>
-          <input type="range" id="spacing" min="0" max="1.4" step="0.02" value="0.55" />
+          <label>Computed</label>
+          <div id="computed" class="export-status"></div>
         </div>
         <h2>Animation</h2>
         <div class="row">
@@ -471,6 +496,35 @@
     };
   }
 
+  function computeGeometry(w, h, appearance) {
+    const { gifPad, indicatorH, indicatorW, spacing } = appearance;
+    const pd = Math.max(0, gifPad);
+
+    const innerW = w - 2 * pd;
+    const innerH = h - 2 * pd;
+
+    const ih = Math.max(0.2, Math.min(0.95, indicatorH));
+    const iw = Math.max(0.12, Math.min(0.6, indicatorW));
+    const sp = Math.max(0, Math.min(1.4, spacing));
+
+    // All design knobs are height-based so the look stays consistent across aspect ratios.
+    const desiredH = Math.max(6, innerH * ih);
+    const desiredW = Math.max(6, desiredH * iw);
+    const desiredG = Math.max(0, desiredH * sp);
+
+    const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
+    const fitScale = desiredTotal > innerW ? (innerW / desiredTotal) : 1;
+
+    const pillH = desiredH * fitScale;
+    const pw = desiredW * fitScale;
+    const g = desiredG * fitScale;
+    const totalW = nCh * pw + (nCh - 1) * g;
+    const startX = pd + (innerW - totalW) / 2;
+    const y = pd + (innerH - pillH) / 2;
+
+    return { pd, innerW, innerH, pillH, pw, g, totalW, startX, y, fitScale };
+  }
+
   function aspectToWH(value) {
     const parts = String(value).split(':');
     const w = +parts[0];
@@ -496,23 +550,8 @@
       canvasCtx.fillRect(0, 0, w, h);
     }
 
-    const innerW = w - 2 * pd;
-    const innerH = h - 2 * pd;
-    // Keep proportions stable across chamber counts/canvas sizes.
-    // Compute a desired geometry, then uniformly scale down only if it doesn't fit.
-    const desiredH = Math.max(6, innerH * Math.max(0.2, Math.min(0.95, indicatorH)));
-    const desiredW = Math.max(6, desiredH * Math.max(0.12, Math.min(0.6, indicatorW)));
-    const gapFactor = Math.max(0, Math.min(1.4, spacing));
-    const desiredG = Math.max(0, desiredW * gapFactor);
-    const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
-    const fitScale = desiredTotal > innerW ? (innerW / desiredTotal) : 1;
-
-    const pillH = desiredH * fitScale;
-    const pw = desiredW * fitScale;
-    const g = desiredG * fitScale;
-    const totalW = nCh * pw + (nCh - 1) * g;
-    const startX = pd + (innerW - totalW) / 2;
-    const y = pd + (innerH - pillH) / 2;
+    const geo = computeGeometry(w, h, appearance);
+    const { pillH, pw, g, startX, y } = geo;
 
     canvasCtx.save();
     const offScale = 0.35;
@@ -712,6 +751,41 @@
     el('tiltVal').textContent = '(' + t.value + ')';
   }
 
+  function syncUiMode() {
+    const mode = el('uiMode') ? el('uiMode').value : 'simple';
+    const simple = el('simpleBlock');
+    const adv = el('advancedBlock');
+    if (simple) simple.style.display = mode === 'simple' ? 'block' : 'none';
+    if (adv) adv.style.display = mode === 'advanced' ? 'block' : 'none';
+  }
+
+  function applyStylePreset(name) {
+    const preset = name || 'balanced';
+    const map = {
+      compact:  { indicatorH: 0.62, indicatorW: 0.24, spacing: 0.35, pillTilt: 0 },
+      balanced: { indicatorH: 0.68, indicatorW: 0.28, spacing: 0.55, pillTilt: 0 },
+      airy:     { indicatorH: 0.72, indicatorW: 0.26, spacing: 0.9,  pillTilt: 0 },
+    };
+    const v = map[preset];
+    if (!v) return;
+    if (el('indicatorH')) el('indicatorH').value = String(v.indicatorH);
+    if (el('indicatorW')) el('indicatorW').value = String(v.indicatorW);
+    if (el('spacing')) el('spacing').value = String(v.spacing);
+    if (el('pillTilt')) el('pillTilt').value = String(v.pillTilt);
+    syncTiltVal();
+  }
+
+  function syncComputed() {
+    const outW = +el('outW').value;
+    const outH = +el('outH').value;
+    if (!Number.isFinite(outW) || !Number.isFinite(outH) || outW <= 0 || outH <= 0) return;
+    const a = readAppearance();
+    const g = computeGeometry(outW, outH, a);
+    if (!el('computed')) return;
+    el('computed').textContent =
+      'pillH=' + Math.round(g.pillH) + 'px • pillW=' + Math.round(g.pw) + 'px • gap=' + Math.round(g.g) + 'px';
+  }
+
   function syncBgRow() {
     const transparent = el('transparent').checked;
     const row = el('bgColorRow');
@@ -771,6 +845,10 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      if (id === 'indicatorH' || id === 'indicatorW' || id === 'spacing' || id === 'pillTilt') {
+        if (el('stylePreset')) el('stylePreset').value = 'custom';
+      }
+      syncComputed();
       drawPreview(previewStep);
     });
     el(id).addEventListener('change', () => {
@@ -781,9 +859,28 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      if (id === 'indicatorH' || id === 'indicatorW' || id === 'spacing' || id === 'pillTilt') {
+        if (el('stylePreset')) el('stylePreset').value = 'custom';
+      }
+      syncComputed();
       drawPreview(previewStep);
     });
   });
+
+  if (el('uiMode')) {
+    el('uiMode').addEventListener('input', () => {
+      syncUiMode();
+    });
+  }
+
+  if (el('stylePreset')) {
+    el('stylePreset').addEventListener('input', () => {
+      const v = el('stylePreset').value;
+      if (v !== 'custom') applyStylePreset(v);
+      syncComputed();
+      drawPreview(previewStep);
+    });
+  }
 
   initGrid();
   applyPreset('sequential');
@@ -792,6 +889,9 @@
   syncPreviewSize();
   syncRuntime();
   syncTiltVal();
+  syncUiMode();
+  applyStylePreset('balanced');
+  syncComputed();
   syncBgRow();
   requestAnimationFrame(tick);
 })();
