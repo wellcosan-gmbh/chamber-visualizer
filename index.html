@@ -82,6 +82,15 @@
       background: var(--bg);
       color: var(--text);
     }
+    input[type="color"] {
+      width: 100%;
+      height: 38px;
+      padding: 0.15rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+    }
     .preset-btns {
       display: flex;
       flex-wrap: wrap;
@@ -208,6 +217,14 @@
           <button type="button" data-preset="center">Center-out</button>
         </div>
         <h2>Pill appearance</h2>
+        <div class="row">
+          <label>Active color</label>
+          <input type="color" id="activeColor" value="#7a1f5c" />
+        </div>
+        <div class="row">
+          <label>Inactive color</label>
+          <input type="color" id="inactiveColor" value="#8d8d94" />
+        </div>
         <div class="row">
           <label>Pill width (px)</label>
           <input type="range" id="pillW" min="16" max="80" value="36" />
@@ -407,6 +424,8 @@
 
   function readAppearance() {
     return {
+      activeColor: el('activeColor').value,
+      inactiveColor: el('inactiveColor').value,
       pillW: +el('pillW').value,
       ratio: +el('pillRatio').value,
       gap: +el('pillGap').value,
@@ -419,7 +438,7 @@
     const refW = 640;
     const refH = 240;
     const scale = Math.min(w / refW, h / refH);
-    const { pillW, ratio, gap, tilt, pad } = appearance;
+    const { activeColor, inactiveColor, pillW, ratio, gap, tilt, pad } = appearance;
     const pw = pillW * scale;
     const g = gap * scale;
     const pd = pad * scale;
@@ -455,7 +474,7 @@
 
       canvasCtx.save();
       if (on) {
-        canvasCtx.shadowColor = 'rgba(122, 31, 92, 0.22)';
+        canvasCtx.shadowColor = activeColor + '38';
         canvasCtx.shadowBlur = Math.max(6, w2 * 0.22);
         canvasCtx.shadowOffsetX = 0;
         canvasCtx.shadowOffsetY = Math.max(2, h2 * 0.05);
@@ -466,7 +485,7 @@
 
       canvasCtx.beginPath();
       canvasCtx.roundRect(x2, y2, w2, h2, r2);
-      canvasCtx.fillStyle = on ? '#7a1f5c' : '#8d8d94';
+      canvasCtx.fillStyle = on ? activeColor : inactiveColor;
       canvasCtx.globalAlpha = on ? 1 : 0.95;
       canvasCtx.fill();
 
@@ -624,6 +643,7 @@
   el('btnExport').addEventListener('click', exportGif);
 
   [
+    'activeColor', 'inactiveColor',
     'pillW', 'pillRatio', 'pillGap', 'pillTilt', 'pillPad',
     'frameMs', 'transparent', 'loopMode',
   ].forEach((id) => {
