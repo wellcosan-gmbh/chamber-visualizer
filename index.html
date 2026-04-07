@@ -609,7 +609,7 @@
     });
 
     const mode = el('loopMode').value;
-    gif.setRepeat(mode === 'once' ? -1 : 0);
+    gif.setOption('repeat', mode === 'once' ? -1 : 0);
 
     gif.on('finished', function (blob) {
       status.textContent = 'Done.';
