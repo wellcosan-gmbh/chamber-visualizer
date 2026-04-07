@@ -1022,9 +1022,13 @@
   function applyStylePreset(name) {
     const preset = name || 'balanced';
     const map = {
-      compact:  { indicatorH: 0.66, indicatorW: 0.26, spacing: 0.22 },
-      balanced: { indicatorH: 0.68, indicatorW: 0.28, spacing: 0.38 },
-      airy:     { indicatorH: 0.70, indicatorW: 0.27, spacing: 0.55 },
+      // Make presets visually distinct:
+      // - compact: smaller + tighter
+      // - balanced: medium
+      // - airy: taller + wider + more spacing (still capped in geometry)
+      compact:  { indicatorH: 0.58, indicatorW: 0.22, spacing: 0.14 },
+      balanced: { indicatorH: 0.68, indicatorW: 0.28, spacing: 0.34 },
+      airy:     { indicatorH: 0.78, indicatorW: 0.34, spacing: 0.70 },
     };
     const v = map[preset];
     if (!v) return;
