@@ -150,6 +150,11 @@
       flex-shrink: 0;
       background: #f7f7fa;
       border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--muted);
     }
     .tl-step-h {
       width: 22px;
@@ -326,7 +331,7 @@
         </div>
         <div class="row">
           <label>GIF padding (px)</label>
-          <input type="number" id="gifPad" min="0" max="400" step="1" value="28" />
+          <input type="number" id="gifPad" min="0" max="400" step="1" value="60" />
         </div>
         <div class="row check-row">
           <input type="checkbox" id="transparent" checked />
@@ -355,14 +360,7 @@
           <label>Time steps <span id="stepVal"></span></label>
           <input type="range" id="steps" min="4" max="60" value="16" />
         </div>
-        <h2>Presets</h2>
-        <div class="preset-btns">
-          <button type="button" data-preset="sequential">Sequential</button>
-          <button type="button" data-preset="parallel">Parallel</button>
-          <button type="button" data-preset="wave">Wave</button>
-          <button type="button" data-preset="alternating">Alternating</button>
-          <button type="button" data-preset="center">Center-out</button>
-        </div>
+        <!-- Presets removed -->
         <h2>Pill appearance</h2>
         <div class="row">
           <label>Style</label>
@@ -376,13 +374,10 @@
         <div class="row">
           <label>Color scheme</label>
           <select id="colorScheme">
-            <option value="mint" selected>RB</option>
-            <option value="berry">VE</option>
+            <option value="mint" selected>Reboots</option>
             <option value="mono">Monochrome</option>
-            <option value="rose_sand">Rose/Sand</option>
+            <option value="venenengel">Venen Engel</option>
             <option value="ocean">Ocean</option>
-            <option value="forest">Forest</option>
-            <option value="sunset">Sunset</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -413,7 +408,7 @@
           <select id="pillShape">
             <option value="pill" selected>Pill</option>
             <option value="round">Round</option>
-            <option value="square">Square</option>
+            <option value="rectangle">Rectangle</option>
             <option value="parallelogram">Parallelogram</option>
           </select>
         </div>
@@ -424,7 +419,7 @@
         <h2>Animation</h2>
         <div class="row">
           <label>Frame duration (ms)</label>
-          <input type="number" id="frameMs" min="40" max="800" step="10" value="500" />
+          <input type="number" id="frameMs" min="40" max="2000" step="10" value="1000" />
         </div>
         <div class="row check-row">
           <input type="checkbox" id="smooth" checked />
@@ -444,7 +439,6 @@
           <select id="loopMode">
             <option value="loop">Loop</option>
             <option value="once">Once</option>
-            <option value="pingpong">Ping-Pong</option>
           </select>
         </div>
         <div class="row">
@@ -591,7 +585,10 @@
     host.innerHTML = '';
     const header = document.createElement('div');
     header.className = 'tl-header';
-    header.appendChild(document.createElement('div')).className = 'tl-corner';
+    const corner = document.createElement('div');
+    corner.className = 'tl-corner';
+    corner.textContent = 'Ch';
+    header.appendChild(corner);
     const cellsH = document.createElement('div');
     cellsH.className = 'tl-cells';
     for (let s = 0; s < nSteps; s++) {
@@ -608,7 +605,7 @@
       row.className = 'tl-row';
       const lab = document.createElement('div');
       lab.className = 'tl-label';
-      lab.textContent = c + 1;
+      lab.textContent = 'Ch ' + (c + 1);
       row.appendChild(lab);
       const cells = document.createElement('div');
       cells.className = 'tl-cells';
@@ -793,16 +790,16 @@
 
       const k = offScale + (1 - offScale) * v;
       const baseSize = Math.min(pw, pillH) * k;
-      const isSquare = pillShape === 'square';
       const isRound = pillShape === 'round';
 
-      const w2 = (isSquare || isRound) ? baseSize : (pw * k);
-      const h2 = (isSquare || isRound) ? baseSize : (pillH * k);
+      // Only "round" is forced to a circle; rectangle/pill keep natural aspect ratio.
+      const w2 = isRound ? baseSize : (pw * k);
+      const h2 = isRound ? baseSize : (pillH * k);
       const x2 = x + (pw - w2) / 2;
       const y2 = y + (pillH - h2) / 2;
       const baseR = Math.min(w2, h2) / 2;
       const r2 =
-        pillShape === 'square' ? 0 :
+        pillShape === 'rectangle' ? 0 :
         pillShape === 'round' ? baseR :
         baseR; // pill
 
@@ -919,12 +916,6 @@
     for (let s = 0; s < nSteps; s++) indices.push(s);
     if (mode === 'once') return indices;
     if (mode === 'loop') return indices;
-    if (mode === 'pingpong') {
-      if (nSteps <= 1) return indices;
-      const back = [];
-      for (let s = nSteps - 2; s >= 1; s--) back.push(s);
-      return indices.concat(back);
-    }
     return indices;
   }
 
@@ -1099,15 +1090,12 @@
   }
 
   const COLOR_SCHEMES = {
-    berry:   { active: '#7a1f5c', inactive: '#8d8d94', bg: '#ffffff' },
     // For transparent exports we still need a matte/key color; keep it white by default
     // to avoid using the inactive color as the transparency key.
-    mint:    { active: '#ccff99', inactive: '#f3f3f3', bg: '#ffffff', transparent: true },
-    rose_sand: { active: '#9c3a3b', inactive: '#d4cbba', bg: '#ffffff', transparent: true },
+    mint:    { active: '#ccff99', inactive: '#f3f3f3', bg: '#ffffff', transparent: true }, // Reboots
+    venenengel: { active: '#9c3a3b', inactive: '#d4cbba', bg: '#ffffff', transparent: true }, // Venen Engel
     mono:    { active: '#111318', inactive: '#d1d5db', bg: '#ffffff' },
     ocean:   { active: '#0f5ea8', inactive: '#9aa6b2', bg: '#ffffff' },
-    forest:  { active: '#1d6b4d', inactive: '#97a39b', bg: '#ffffff' },
-    sunset:  { active: '#c2410c', inactive: '#9a9aa1', bg: '#ffffff' },
   };
 
   function applyColorScheme(id) {
@@ -1147,9 +1135,7 @@
     syncFileExt();
   });
 
-  document.querySelectorAll('[data-preset]').forEach((btn) => {
-    btn.addEventListener('click', () => applyPreset(btn.getAttribute('data-preset')));
-  });
+  // Sequence presets removed.
 
   el('btnClear').addEventListener('click', () => {
     initGrid();
@@ -1236,7 +1222,8 @@
   }
 
   initGrid();
-  applyPreset('sequential');
+  renderTimeline();
+  drawPreview(0);
   syncChamberStepLabels();
   syncOutputHeight();
   syncPreviewSize();
@@ -1245,7 +1232,7 @@
   applyStylePreset('balanced');
   syncStyleUi();
   syncEasingUi();
-  applyColorScheme('berry');
+  applyColorScheme('mint');
   if (el('version')) el('version').textContent = getAutoVersion();
   requestAnimationFrame(tick);
 })();
