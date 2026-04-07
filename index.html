@@ -377,6 +377,8 @@
           <label>Color scheme</label>
           <select id="colorScheme">
             <option value="berry" selected>Berry</option>
+            <option value="mint">Mint</option>
+            <option value="rose_sand">Rose/Sand</option>
             <option value="mono">Mono</option>
             <option value="ocean">Ocean</option>
             <option value="forest">Forest</option>
@@ -1039,6 +1041,8 @@
 
   const COLOR_SCHEMES = {
     berry:   { active: '#7a1f5c', inactive: '#8d8d94', bg: '#ffffff' },
+    mint:    { active: '#ccff99', inactive: '#f3f3f3', bg: '#f3f3f3', transparent: true },
+    rose_sand: { active: '#9c3a3b', inactive: '#d4cbba', bg: '#d4cbba', transparent: true },
     mono:    { active: '#2a2f3a', inactive: '#a3a7b2', bg: '#ffffff' },
     ocean:   { active: '#0f5ea8', inactive: '#9aa6b2', bg: '#ffffff' },
     forest:  { active: '#1d6b4d', inactive: '#97a39b', bg: '#ffffff' },
@@ -1051,6 +1055,10 @@
     if (el('activeColor')) el('activeColor').value = scheme.active;
     if (el('inactiveColor')) el('inactiveColor').value = scheme.inactive;
     if (el('bgColor')) el('bgColor').value = scheme.bg;
+    if (el('transparent') && typeof scheme.transparent === 'boolean') {
+      el('transparent').checked = scheme.transparent;
+      preview.classList.toggle('transparent-bg', scheme.transparent);
+    }
   }
 
 
