@@ -607,7 +607,8 @@
     const { pillH, pw, g, startX, y } = geo;
 
     canvasCtx.save();
-    const offScale = 0.35;
+    // Keep active growth subtle: active is at most +20% vs inactive.
+    const offScale = 1 / 1.2;
     const aRgb = hexToRgb(activeColor || '#7a1f5c');
     const iRgb = hexToRgb(inactiveColor || '#8d8d94');
     const eased = smooth ? applyEasing(easing, tBetween) : 0;
