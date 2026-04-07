@@ -279,7 +279,7 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Chamber Visualizer</h1>
+    <h1>Chamber Visualizer <span id="version" style="font-size:0.9rem; color: var(--muted); font-weight: 600;"></span></h1>
     <p class="sub">Edit the timeline, tune the look, export an animated GIF.</p>
 
     <details class="export-bar" id="exportBar">
@@ -465,6 +465,7 @@
   </div>
   <script>
 (function () {
+  const APP_VERSION = '0.2.0';
   const GIF_WORKER = './vendor/gif.worker.js';
 
   const el = (id) => document.getElementById(id);
@@ -948,6 +949,7 @@
     const matteHex = (el('bgColor') && el('bgColor').value) ? el('bgColor').value : '#ffffff';
     const keyBgHex = matteHex;
     const keyBg = parseInt(String(matteHex).replace('#', ''), 16);
+    const keyRgb = hexToRgb(keyBgHex);
     const gif = new GIF({
       workers,
       quality,
@@ -967,12 +969,31 @@
     if (easingRow) easingRow.style.display = smooth ? 'block' : 'none';
     const subFrames = smooth ? 4 : 1;
     const subDelay = Math.max(10, Math.round(frameMs / subFrames));
+    function applyKeyCleanup(ctx2d, w2, h2, key, thr) {
+      const img = ctx2d.getImageData(0, 0, w2, h2);
+      const d = img.data;
+      const t2 = thr * thr;
+      for (let i = 0; i < d.length; i += 4) {
+        const dr = d[i] - key.r;
+        const dg = d[i + 1] - key.g;
+        const db = d[i + 2] - key.b;
+        if ((dr * dr + dg * dg + db * db) <= t2) {
+          d[i] = key.r;
+          d[i + 1] = key.g;
+          d[i + 2] = key.b;
+          d[i + 3] = 255;
+        }
+      }
+      ctx2d.putImageData(img, 0, 0);
+    }
+
     for (let si = 0; si < seq.length; si++) {
       const from = seq[si];
       const to = seq[(si + 1) % seq.length];
       for (let i = 0; i < subFrames; i++) {
         const t = subFrames === 1 ? 0 : (i / subFrames);
         drawFrame(octx, from, to, outW, outH, transparent, appearance, t);
+        if (transparent) applyKeyCleanup(octx, outW, outH, keyRgb, 28);
         gif.addFrame(octx, { copy: true, delay: subDelay });
       }
     }
@@ -1206,6 +1227,7 @@
   syncStyleUi();
   syncEasingUi();
   applyColorScheme('berry');
+  if (el('version')) el('version').textContent = 'v' + APP_VERSION;
   requestAnimationFrame(tick);
 })();
   </script>
