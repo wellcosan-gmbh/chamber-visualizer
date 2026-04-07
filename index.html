@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chamber Visualizer</title>
-  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <script src="./vendor/gif.js"></script>
   <style>
     :root {
       --bg: #12141a;
@@ -225,26 +225,6 @@
           <label>Inactive color</label>
           <input type="color" id="inactiveColor" value="#8d8d94" />
         </div>
-        <div class="row">
-          <label>Pill width (px)</label>
-          <input type="range" id="pillW" min="16" max="80" value="36" />
-        </div>
-        <div class="row">
-          <label>Height ratio</label>
-          <input type="range" id="pillRatio" min="0.25" max="1" step="0.05" value="0.55" />
-        </div>
-        <div class="row">
-          <label>Gap (px)</label>
-          <input type="range" id="pillGap" min="0" max="24" value="6" />
-        </div>
-        <div class="row">
-          <label>Tilt (deg)</label>
-          <input type="range" id="pillTilt" min="-35" max="35" value="12" />
-        </div>
-        <div class="row">
-          <label>Padding (px)</label>
-          <input type="range" id="pillPad" min="8" max="64" value="24" />
-        </div>
         <h2>Animation</h2>
         <div class="row">
           <label>Frame duration (ms)</label>
@@ -258,18 +238,39 @@
             <option value="pingpong">Ping-Pong</option>
           </select>
         </div>
+        <h2>Export</h2>
+        <div class="row">
+          <label>Aspect ratio</label>
+          <select id="aspect">
+            <option value="1:1">1 / 1</option>
+            <option value="3:4">3 / 4</option>
+            <option value="4:3" selected>4 / 3</option>
+            <option value="16:9">16 / 9</option>
+          </select>
+        </div>
         <div class="row check-row">
           <input type="checkbox" id="transparent" checked />
           <label for="transparent" style="margin:0">Transparent background</label>
         </div>
-        <h2>Export</h2>
+        <div class="row" id="bgColorRow" style="display:none">
+          <label>Background color</label>
+          <input type="color" id="bgColor" value="#ffffff" />
+        </div>
+        <div class="row">
+          <label>GIF padding (px)</label>
+          <input type="number" id="gifPad" min="0" max="400" step="1" value="28" />
+        </div>
         <div class="row">
           <label>Output width (px)</label>
           <input type="number" id="outW" min="120" max="1200" step="10" value="480" />
         </div>
         <div class="row">
-          <label>Output height (px)</label>
-          <input type="number" id="outH" min="80" max="800" step="10" value="200" />
+          <label>Output height (auto)</label>
+          <input type="number" id="outH" min="80" max="2000" step="1" value="360" disabled />
+        </div>
+        <div class="row">
+          <label>Total runtime</label>
+          <div id="runtime" class="export-status"></div>
         </div>
         <div class="actions">
           <button type="button" class="btn-primary" id="btnExport">Export GIF</button>
@@ -290,7 +291,7 @@
   </div>
   <script>
 (function () {
-  const GIF_WORKER = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
+  const GIF_WORKER = './vendor/gif.worker.js';
 
   const el = (id) => document.getElementById(id);
   const preview = el('preview');
@@ -426,39 +427,47 @@
     return {
       activeColor: el('activeColor').value,
       inactiveColor: el('inactiveColor').value,
-      pillW: +el('pillW').value,
-      ratio: +el('pillRatio').value,
-      gap: +el('pillGap').value,
-      tilt: (+el('pillTilt').value * Math.PI) / 180,
-      pad: +el('pillPad').value,
+      bgColor: el('bgColor') ? el('bgColor').value : '#ffffff',
+      gifPad: +el('gifPad').value || 0,
     };
   }
 
+  function aspectToWH(value) {
+    const parts = String(value).split(':');
+    const w = +parts[0];
+    const h = +parts[1];
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return { w: 4, h: 3 };
+    return { w, h };
+  }
+
+  function syncOutputHeight() {
+    const outW = +el('outW').value;
+    const { w, h } = aspectToWH(el('aspect').value);
+    const outH = Math.max(1, Math.round(outW * (h / w)));
+    el('outH').value = String(outH);
+    return outH;
+  }
+
   function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance) {
-    const refW = 640;
-    const refH = 240;
-    const scale = Math.min(w / refW, h / refH);
-    const { activeColor, inactiveColor, pillW, ratio, gap, tilt, pad } = appearance;
-    const pw = pillW * scale;
-    const g = gap * scale;
-    const pd = pad * scale;
-    const pillH = pw * ratio;
+    const { activeColor, inactiveColor, bgColor, gifPad } = appearance;
+    const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
     if (!transparent) {
-      canvasCtx.fillStyle = '#ffffff';
+      canvasCtx.fillStyle = bgColor || '#ffffff';
       canvasCtx.fillRect(0, 0, w, h);
     }
 
     const innerW = w - 2 * pd;
     const innerH = h - 2 * pd;
+    const pillH = Math.max(6, innerH * 0.62);
+    const g = Math.max(4, Math.min(innerW * 0.035, 18));
+    const pw = Math.max(6, (innerW - (nCh - 1) * g) / nCh);
     const totalW = nCh * pw + (nCh - 1) * g;
     const startX = pd + (innerW - totalW) / 2;
     const y = pd + (innerH - pillH) / 2;
 
     canvasCtx.save();
-    canvasCtx.translate(w / 2, h / 2);
-    canvasCtx.rotate(tilt);
-    canvasCtx.translate(-w / 2, -h / 2);
+    // no tilt (fixed look)
 
     const offScale = 0.35;
     for (let c = 0; c < nCh; c++) {
@@ -474,7 +483,7 @@
 
       canvasCtx.save();
       if (on) {
-        canvasCtx.shadowColor = activeColor + '38';
+        canvasCtx.shadowColor = 'rgba(0,0,0,0.18)';
         canvasCtx.shadowBlur = Math.max(6, w2 * 0.22);
         canvasCtx.shadowOffsetX = 0;
         canvasCtx.shadowOffsetY = Math.max(2, h2 * 0.05);
@@ -485,7 +494,7 @@
 
       canvasCtx.beginPath();
       canvasCtx.roundRect(x2, y2, w2, h2, r2);
-      canvasCtx.fillStyle = on ? activeColor : inactiveColor;
+      canvasCtx.fillStyle = on ? (activeColor || '#7a1f5c') : (inactiveColor || '#8d8d94');
       canvasCtx.globalAlpha = on ? 1 : 0.95;
       canvasCtx.fill();
 
@@ -510,10 +519,18 @@
   let previewStep = 0;
   let lastT = 0;
 
+  function syncPreviewSize() {
+    const outW = +el('outW').value;
+    const outH = +el('outH').value;
+    if (Number.isFinite(outW) && outW > 0) preview.width = outW;
+    if (Number.isFinite(outH) && outH > 0) preview.height = outH;
+  }
+
   function drawPreview(step) {
     const a = readAppearance();
     const transparent = el('transparent').checked;
     preview.classList.toggle('opaque-bg', !transparent);
+    syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
     drawFrame(ctx, step, w, h, transparent, a);
@@ -553,7 +570,7 @@
     const status = el('exportStatus');
     status.textContent = 'Encoding…';
     const outW = +el('outW').value;
-    const outH = +el('outH').value;
+    const outH = syncOutputHeight();
     const transparent = el('transparent').checked;
     const frameMs = +el('frameMs').value || 120;
     const seq = buildFrameSequence();
@@ -610,6 +627,20 @@
     el('stepVal').textContent = '(' + nSteps + ')';
   }
 
+  function syncRuntime() {
+    const frameMs = +el('frameMs').value || 120;
+    const seq = buildFrameSequence();
+    const totalMs = seq.length * frameMs;
+    const secs = totalMs / 1000;
+    el('runtime').textContent = seq.length + ' frames • ' + secs.toFixed(secs >= 10 ? 1 : 2) + ' s per cycle';
+  }
+
+  function syncBgRow() {
+    const transparent = el('transparent').checked;
+    const row = el('bgColorRow');
+    if (row) row.style.display = transparent ? 'none' : 'block';
+  }
+
   el('chambers').addEventListener('input', () => {
     const v = +el('chambers').value;
     if (v === nCh) return;
@@ -618,6 +649,7 @@
     syncChamberStepLabels();
     renderTimeline();
     drawPreview(0);
+    syncRuntime();
   });
 
   el('steps').addEventListener('input', () => {
@@ -628,6 +660,7 @@
     syncChamberStepLabels();
     renderTimeline();
     drawPreview(0);
+    syncRuntime();
   });
 
   document.querySelectorAll('[data-preset]').forEach((btn) => {
@@ -638,22 +671,45 @@
     initGrid();
     renderTimeline();
     drawPreview(0);
+    syncRuntime();
   });
 
   el('btnExport').addEventListener('click', exportGif);
 
   [
     'activeColor', 'inactiveColor',
-    'pillW', 'pillRatio', 'pillGap', 'pillTilt', 'pillPad',
+    'bgColor', 'gifPad',
     'frameMs', 'transparent', 'loopMode',
+    'aspect', 'outW',
   ].forEach((id) => {
-    el(id).addEventListener('input', () => drawPreview(previewStep));
-    el(id).addEventListener('change', () => drawPreview(previewStep));
+    if (!el(id)) return;
+    el(id).addEventListener('input', () => {
+      if (id === 'outW' || id === 'aspect') {
+        syncOutputHeight();
+        syncPreviewSize();
+      }
+      if (id === 'transparent') syncBgRow();
+      if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      drawPreview(previewStep);
+    });
+    el(id).addEventListener('change', () => {
+      if (id === 'outW' || id === 'aspect') {
+        syncOutputHeight();
+        syncPreviewSize();
+      }
+      if (id === 'transparent') syncBgRow();
+      if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      drawPreview(previewStep);
+    });
   });
 
   initGrid();
   applyPreset('sequential');
   syncChamberStepLabels();
+  syncOutputHeight();
+  syncPreviewSize();
+  syncRuntime();
+  syncBgRow();
   requestAnimationFrame(tick);
 })();
   </script>
