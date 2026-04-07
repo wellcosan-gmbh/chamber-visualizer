@@ -279,6 +279,15 @@
           <input type="checkbox" id="smooth" checked />
           <label for="smooth" style="margin:0">Smooth transitions</label>
         </div>
+        <div class="row" id="easingRow">
+          <label>Easing</label>
+          <select id="easing">
+            <option value="inout" selected>Ease in-out</option>
+            <option value="in">Ease in</option>
+            <option value="out">Ease out</option>
+            <option value="linear">Linear</option>
+          </select>
+        </div>
         <div class="row">
           <label>Loop mode</label>
           <select id="loopMode">
@@ -493,13 +502,28 @@
       indicatorW: el('indicatorW') ? (+el('indicatorW').value || 0.28) : 0.28,
       spacing: el('spacing') ? (+el('spacing').value || 0.55) : 0.55,
       smooth: el('smooth') ? !!el('smooth').checked : true,
+      easing: el('easing') ? el('easing').value : 'inout',
     };
   }
 
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function easeInCubic(t) {
+    const x = clamp01(t);
+    return x * x * x;
+  }
+  function easeOutCubic(t) {
+    const x = clamp01(t);
+    return 1 - Math.pow(1 - x, 3);
+  }
   function easeInOutCubic(t) {
     const x = clamp01(t);
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+  function applyEasing(mode, t) {
+    if (mode === 'linear') return clamp01(t);
+    if (mode === 'in') return easeInCubic(t);
+    if (mode === 'out') return easeOutCubic(t);
+    return easeInOutCubic(t);
   }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function hexToRgb(hex) {
@@ -571,7 +595,7 @@
   }
 
   function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance, tBetween = 0) {
-    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, smooth } = appearance;
+    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, smooth, easing } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
     if (!transparent) {
@@ -586,7 +610,7 @@
     const offScale = 0.35;
     const aRgb = hexToRgb(activeColor || '#7a1f5c');
     const iRgb = hexToRgb(inactiveColor || '#8d8d94');
-    const eased = smooth ? easeInOutCubic(tBetween) : 0;
+    const eased = smooth ? applyEasing(easing, tBetween) : 0;
     const nextStep = (stepIndex + 1) % nSteps;
     for (let c = 0; c < nCh; c++) {
       const cur = grid[c][stepIndex % nSteps] ? 1 : 0;
@@ -763,6 +787,8 @@
 
     status.textContent = 'Rendering frames… (0/' + seq.length + ')';
     const smooth = appearance.smooth;
+    const easingRow = el('easingRow');
+    if (easingRow) easingRow.style.display = smooth ? 'block' : 'none';
     const subFrames = smooth ? 4 : 1;
     const subDelay = Math.max(10, Math.round(frameMs / subFrames));
     seq.forEach((stepIdx) => {
@@ -824,6 +850,12 @@
     const t = el('pillTilt');
     if (!t || !el('tiltVal')) return;
     el('tiltVal').textContent = '(' + t.value + ')';
+  }
+
+  function syncEasingUi() {
+    const smooth = el('smooth') ? el('smooth').checked : true;
+    const row = el('easingRow');
+    if (row) row.style.display = smooth ? 'block' : 'none';
   }
 
   function applyStylePreset(name) {
@@ -891,7 +923,7 @@
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
-    'frameMs', 'smooth', 'transparent', 'loopMode',
+    'frameMs', 'smooth', 'easing', 'transparent', 'loopMode',
     'aspect', 'outW', 'exportQuality',
   ].forEach((id) => {
     if (!el(id)) return;
@@ -941,6 +973,7 @@
   syncTiltVal();
   applyStylePreset('balanced');
   syncStyleUi();
+  syncEasingUi();
   syncBgRow();
   requestAnimationFrame(tick);
 })();
