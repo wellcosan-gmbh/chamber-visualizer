@@ -329,6 +329,10 @@
           <input type="number" id="gifPad" min="0" max="400" step="1" value="28" />
         </div>
         <div class="row check-row">
+          <input type="checkbox" id="transparent" checked />
+          <label for="transparent" style="margin:0">Transparent background</label>
+        </div>
+        <div class="row check-row">
           <input type="checkbox" id="nameHasSequence" />
           <label for="nameHasSequence" style="margin:0">Add sequence to filename</label>
         </div>
@@ -731,7 +735,14 @@
     const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, smooth, easing } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
-    if (!transparent) {
+    if (transparent) {
+      // For GIF exports we optionally paint a keyed background color for transparency.
+      // For preview we keep it actually transparent (checkerboard is CSS).
+      if (appearance._keyBgColor) {
+        canvasCtx.fillStyle = appearance._keyBgColor;
+        canvasCtx.fillRect(0, 0, w, h);
+      }
+    } else {
       canvasCtx.fillStyle = bgColor || '#ffffff';
       canvasCtx.fillRect(0, 0, w, h);
     }
@@ -767,15 +778,7 @@
         baseR; // pill
 
       canvasCtx.save();
-      if (v > 0.01) {
-        canvasCtx.shadowColor = 'rgba(0,0,0,0.18)';
-        canvasCtx.shadowBlur = Math.max(6, w2 * 0.22);
-        canvasCtx.shadowOffsetX = 0;
-        canvasCtx.shadowOffsetY = Math.max(2, h2 * 0.05);
-      } else {
-        canvasCtx.shadowColor = 'transparent';
-        canvasCtx.shadowBlur = 0;
-      }
+      // No shadows (clean animation, no flicker).
 
       const cx = x2 + w2 / 2;
       const cy = y2 + h2 / 2;
@@ -835,8 +838,8 @@
 
   function drawPreview(step) {
     const a = readAppearance();
-    const transparent = false;
-    preview.classList.toggle('transparent-bg', false);
+    const transparent = el('transparent') ? el('transparent').checked : false;
+    preview.classList.toggle('transparent-bg', transparent);
     syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
@@ -862,8 +865,8 @@
     const step = seq[idx];
     const next = seq[(idx + 1) % seq.length];
     const a = readAppearance();
-    const transparent = false;
-    preview.classList.toggle('transparent-bg', false);
+    const transparent = el('transparent') ? el('transparent').checked : false;
+    preview.classList.toggle('transparent-bg', transparent);
     syncPreviewSize();
     drawFrame(ctx, step, next, preview.width, preview.height, transparent, a, t);
     requestAnimationFrame(tick);
@@ -889,7 +892,7 @@
     status.textContent = 'Preparing…';
     const outW = +el('outW').value;
     const outH = syncOutputHeight();
-    const transparent = false;
+    const transparent = el('transparent') ? el('transparent').checked : false;
     const frameMs = +el('frameMs').value || 120;
     const seq = buildFrameSequence();
     if (seq.length === 0) {
@@ -910,15 +913,19 @@
     const quality = q === 'high' ? 6 : q === 'balanced' ? 10 : 16; // lower = better quality, slower
     const workers = q === 'high' ? 2 : 4;
 
+    const keyBgHex = '#ff00ff';
+    const keyBg = 0xff00ff;
     const gif = new GIF({
       workers,
       quality,
       width: outW,
       height: outH,
       workerScript: GIF_WORKER,
+      ...(transparent ? { transparent: keyBg, background: keyBgHex } : {}),
     });
 
     const appearance = readAppearance();
+    if (transparent) appearance._keyBgColor = keyBgHex;
 
     status.textContent = 'Rendering frames… (0/' + seq.length + ')';
     const smooth = appearance.smooth;
@@ -1058,7 +1065,7 @@
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
-    'frameMs', 'smooth', 'easing', 'loopMode',
+    'frameMs', 'smooth', 'easing', 'transparent', 'loopMode',
     'aspect', 'outW', 'exportQuality', 'nameHasSequence',
   ].forEach((id) => {
     if (!el(id)) return;
