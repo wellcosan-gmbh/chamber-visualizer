@@ -465,7 +465,16 @@
   </div>
   <script>
 (function () {
-  const APP_VERSION = '0.2.0';
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function getAutoVersion() {
+    const d = new Date(document.lastModified);
+    if (!Number.isFinite(d.getTime())) return 'v0';
+    return 'v' +
+      d.getFullYear() + '.' +
+      pad2(d.getMonth() + 1) + '.' +
+      pad2(d.getDate()) + '-' +
+      pad2(d.getHours()) + pad2(d.getMinutes());
+  }
   const GIF_WORKER = './vendor/gif.worker.js';
 
   const el = (id) => document.getElementById(id);
@@ -1235,7 +1244,7 @@
   syncStyleUi();
   syncEasingUi();
   applyColorScheme('berry');
-  if (el('version')) el('version').textContent = 'v' + APP_VERSION;
+  if (el('version')) el('version').textContent = getAutoVersion();
   requestAnimationFrame(tick);
 })();
   </script>
