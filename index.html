@@ -375,8 +375,8 @@
         <div class="row">
           <label>Color scheme</label>
           <select id="colorScheme">
-            <option value="mint" selected>Reboots</option>
-            <option value="mono">Monochrome</option>
+            <option value="mono" selected>Monochrome</option>
+            <option value="mint">Reboots</option>
             <option value="venenengel">Venen Engel</option>
             <option value="ocean">Ocean</option>
             <option value="custom">Custom</option>
@@ -1237,7 +1237,7 @@
   applyStylePreset('balanced');
   syncStyleUi();
   syncEasingUi();
-  applyColorScheme('mint');
+  applyColorScheme('mono');
   if (el('version')) el('version').textContent = getAutoVersion();
   requestAnimationFrame(tick);
 })();
