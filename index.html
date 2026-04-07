@@ -756,7 +756,12 @@
     const simple = el('simpleBlock');
     const adv = el('advancedBlock');
     if (simple) simple.style.display = mode === 'simple' ? 'block' : 'none';
-    if (adv) adv.style.display = mode === 'advanced' ? 'block' : 'none';
+    if (adv) {
+      const preset = el('stylePreset') ? el('stylePreset').value : 'balanced';
+      const showAdvanced = mode === 'advanced' || (mode === 'simple' && preset === 'custom');
+      adv.style.display = showAdvanced ? 'block' : 'none';
+      if (showAdvanced) adv.open = true;
+    }
   }
 
   function applyStylePreset(name) {
@@ -877,6 +882,7 @@
     el('stylePreset').addEventListener('input', () => {
       const v = el('stylePreset').value;
       if (v !== 'custom') applyStylePreset(v);
+      syncUiMode();
       syncComputed();
       drawPreview(previewStep);
     });
