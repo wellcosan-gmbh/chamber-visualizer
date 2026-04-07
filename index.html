@@ -200,20 +200,151 @@
     .export-status { font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
     .check-row { display: flex; align-items: center; gap: 0.5rem; }
     .check-row input { width: auto; }
+
+    .export-bar {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(10, 10, 20, 0.06);
+      margin-bottom: 0.9rem;
+      overflow: hidden;
+    }
+    .export-bar summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.65rem 0.75rem;
+    }
+    .export-bar summary::-webkit-details-marker { display: none; }
+    .export-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .export-left {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 0;
+      flex: 1;
+    }
+    .file-input {
+      border: none;
+      outline: none;
+      background: transparent;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text);
+      padding: 0.25rem 0.1rem;
+      width: 100%;
+      min-width: 0;
+    }
+    .file-ext {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .file-suffix {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      opacity: 0.95;
+      max-width: 420px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .export-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .export-right button {
+      padding: 0.45rem 0.8rem;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .export-content {
+      border-top: 1px solid var(--border);
+      padding: 0.75rem 0.85rem 0.1rem;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Chamber Visualizer</h1>
     <p class="sub">Edit the timeline, tune the look, export an animated GIF.</p>
+
+    <details class="export-bar" id="exportBar">
+      <summary>
+        <div class="export-summary">
+          <div class="export-left">
+            <input class="file-input" type="text" id="fileName" value="chamber-sequence" aria-label="File name" />
+            <span class="file-suffix" id="fileSuffix" style="display:none"></span>
+            <span class="file-ext" id="fileExt">.gif</span>
+          </div>
+          <div class="export-right">
+            <button type="button" class="btn-secondary" id="btnClear">Clear</button>
+            <button type="button" class="btn-primary" id="btnExport">Export</button>
+          </div>
+        </div>
+      </summary>
+      <div class="export-content">
+        <p class="export-status" id="exportStatus" style="margin-top:0"></p>
+        <div class="row">
+          <label>Aspect ratio</label>
+          <select id="aspect">
+            <option value="1:1">1 / 1</option>
+            <option value="3:4">3 / 4</option>
+            <option value="4:3" selected>4 / 3</option>
+            <option value="16:9">16 / 9</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Output width (px)</label>
+          <input type="number" id="outW" min="120" max="1200" step="10" value="480" />
+        </div>
+        <div class="row">
+          <label>Output height (auto)</label>
+          <input type="number" id="outH" min="80" max="2000" step="1" value="360" disabled />
+        </div>
+        <div class="row">
+          <label>Export quality</label>
+          <select id="exportQuality">
+            <option value="fast" selected>Fast (recommended)</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High</option>
+          </select>
+          <div class="hint">Higher quality can be slower.</div>
+        </div>
+        <div class="row">
+          <label>GIF padding (px)</label>
+          <input type="number" id="gifPad" min="0" max="400" step="1" value="28" />
+        </div>
+        <div class="row check-row">
+          <input type="checkbox" id="nameHasSequence" />
+          <label for="nameHasSequence" style="margin:0">Add sequence to filename</label>
+        </div>
+        <div class="row check-row">
+          <input type="checkbox" id="transparent" checked />
+          <label for="transparent" style="margin:0">Transparent background</label>
+        </div>
+        <div class="row" id="bgColorRow" style="display:none">
+          <label>Background color</label>
+          <input type="color" id="bgColor" value="#ffffff" />
+        </div>
+      </div>
+    </details>
+
     <div class="grid-layout">
       <aside class="panel">
-        <div class="actions" style="margin-top:0; margin-bottom: 0.75rem;">
-          <button type="button" class="btn-primary" id="btnExport">Export GIF</button>
-          <button type="button" class="btn-secondary" id="btnClear">Clear timeline</button>
-        </div>
-        <p class="export-status" id="exportStatus" style="margin-top:0"></p>
-
         <h2>Layout</h2>
         <div class="row">
           <label>Chambers <span id="chamberVal"></span></label>
@@ -302,50 +433,6 @@
             <option value="pingpong">Ping-Pong</option>
           </select>
         </div>
-        <h2>Export</h2>
-        <div class="row">
-          <label>File name</label>
-          <input type="text" id="fileName" value="chamber-sequence" />
-          <div class="hint">“.gif” will be added automatically.</div>
-        </div>
-        <div class="row">
-          <label>Aspect ratio</label>
-          <select id="aspect">
-            <option value="1:1">1 / 1</option>
-            <option value="3:4">3 / 4</option>
-            <option value="4:3" selected>4 / 3</option>
-            <option value="16:9">16 / 9</option>
-          </select>
-        </div>
-        <div class="row check-row">
-          <input type="checkbox" id="transparent" checked />
-          <label for="transparent" style="margin:0">Transparent background</label>
-        </div>
-        <div class="row" id="bgColorRow" style="display:none">
-          <label>Background color</label>
-          <input type="color" id="bgColor" value="#ffffff" />
-        </div>
-        <div class="row">
-          <label>GIF padding (px)</label>
-          <input type="number" id="gifPad" min="0" max="400" step="1" value="28" />
-        </div>
-        <div class="row">
-          <label>Output width (px)</label>
-          <input type="number" id="outW" min="120" max="1200" step="10" value="480" />
-        </div>
-        <div class="row">
-          <label>Output height (auto)</label>
-          <input type="number" id="outH" min="80" max="2000" step="1" value="360" disabled />
-        </div>
-        <div class="row">
-          <label>Export quality</label>
-          <select id="exportQuality">
-            <option value="fast" selected>Fast (recommended)</option>
-            <option value="balanced">Balanced</option>
-            <option value="high">High</option>
-          </select>
-          <div class="hint">Higher quality can be slower.</div>
-        </div>
         <div class="row">
           <label>Total runtime</label>
           <div id="runtime" class="export-status"></div>
@@ -369,6 +456,48 @@
   const el = (id) => document.getElementById(id);
   const preview = el('preview');
   const ctx = preview.getContext('2d');
+
+  function encodeChamber(i) {
+    // 1-9 as digits; 10-12 as A-C to avoid ambiguity and keep short.
+    if (i >= 1 && i <= 9) return String(i);
+    if (i === 10) return 'A';
+    if (i === 11) return 'B';
+    if (i === 12) return 'C';
+    return String(i);
+  }
+
+  function buildSequenceTag() {
+    // One forward cycle (nSteps), regardless of loop mode.
+    const parts = [];
+    for (let s = 0; s < nSteps; s++) {
+      let token = '';
+      for (let c = 0; c < nCh; c++) {
+        if (grid[c][s]) token += encodeChamber(c + 1);
+      }
+      parts.push(token.length ? token : 'x');
+    }
+    return parts.join('-');
+  }
+
+  function getDownloadName() {
+    const rawName = (el('fileName') && el('fileName').value) ? el('fileName').value.trim() : '';
+    const base = (rawName || 'chamber-sequence').replace(/[\\/:*?"<>|]+/g, '-');
+    const wantsSeq = el('nameHasSequence') ? el('nameHasSequence').checked : false;
+    const seq = wantsSeq ? ('-' + buildSequenceTag()) : '';
+    const full = base + seq;
+    return full.toLowerCase().endsWith('.gif') ? full : (full + '.gif');
+  }
+
+  function syncFileExt() {
+    const name = (el('fileName') && el('fileName').value) ? el('fileName').value.trim() : '';
+    const hasExt = name.toLowerCase().endsWith('.gif');
+    if (el('fileExt')) el('fileExt').style.display = hasExt ? 'none' : 'inline';
+    if (el('fileSuffix')) {
+      const wantsSeq = el('nameHasSequence') ? el('nameHasSequence').checked : false;
+      el('fileSuffix').style.display = wantsSeq ? 'inline' : 'none';
+      el('fileSuffix').textContent = wantsSeq ? ('-' + buildSequenceTag()) : '';
+    }
+  }
 
   let nCh = 8;
   let nSteps = 16;
@@ -480,6 +609,7 @@
     paintValue = !grid[c][s];
     grid[c][s] = paintValue;
     t.classList.toggle('on', paintValue);
+    syncFileExt();
   }
 
   function onCellEnter(e) {
@@ -489,6 +619,7 @@
     const s = +t.dataset.s;
     grid[c][s] = paintValue;
     t.classList.toggle('on', paintValue);
+    syncFileExt();
   }
 
   document.addEventListener('mouseup', () => {
@@ -825,9 +956,7 @@
       status.textContent = 'Done.';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      const rawName = (el('fileName') && el('fileName').value) ? el('fileName').value.trim() : 'chamber-sequence';
-      const safe = (rawName || 'chamber-sequence').replace(/[\\/:*?"<>|]+/g, '-');
-      a.download = safe.toLowerCase().endsWith('.gif') ? safe : (safe + '.gif');
+      a.download = getDownloadName();
       a.click();
       URL.revokeObjectURL(a.href);
     });
@@ -905,6 +1034,7 @@
     renderTimeline();
     drawPreview(0);
     syncRuntime();
+    syncFileExt();
   });
 
   el('steps').addEventListener('input', () => {
@@ -916,6 +1046,7 @@
     renderTimeline();
     drawPreview(0);
     syncRuntime();
+    syncFileExt();
   });
 
   document.querySelectorAll('[data-preset]').forEach((btn) => {
@@ -927,6 +1058,7 @@
     renderTimeline();
     drawPreview(0);
     syncRuntime();
+    syncFileExt();
   });
 
   el('btnExport').addEventListener('click', exportGif);
@@ -936,7 +1068,7 @@
     'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
     'frameMs', 'smooth', 'easing', 'transparent', 'loopMode',
-    'aspect', 'outW', 'exportQuality',
+    'aspect', 'outW', 'exportQuality', 'nameHasSequence',
   ].forEach((id) => {
     if (!el(id)) return;
     el(id).addEventListener('input', () => {
@@ -947,6 +1079,7 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      if (id === 'nameHasSequence') syncFileExt();
       drawPreview(previewStep);
     });
     el(id).addEventListener('change', () => {
@@ -957,9 +1090,25 @@
       if (id === 'pillTilt') syncTiltVal();
       if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
+      if (id === 'nameHasSequence') syncFileExt();
       drawPreview(previewStep);
     });
   });
+
+  if (el('fileName')) {
+    el('fileName').addEventListener('input', () => syncFileExt());
+    el('fileName').addEventListener('change', () => syncFileExt());
+    syncFileExt();
+  }
+
+  // Prevent export-bar toggle when clicking action buttons.
+  if (el('exportBar')) {
+    ['btnExport', 'btnClear'].forEach((bid) => {
+      const b = el(bid);
+      if (!b) return;
+      b.addEventListener('click', (e) => e.stopPropagation());
+    });
+  }
 
   ['indicatorH', 'indicatorW', 'spacing'].forEach((id) => {
     if (!el(id)) return;
