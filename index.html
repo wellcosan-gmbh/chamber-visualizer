@@ -349,11 +349,11 @@
         <h2>Layout</h2>
         <div class="row">
           <label>Chambers <span id="chamberVal"></span></label>
-          <input type="range" id="chambers" min="4" max="12" value="8" />
+          <input type="range" id="chambers" min="4" max="14" value="8" />
         </div>
         <div class="row">
           <label>Time steps <span id="stepVal"></span></label>
-          <input type="range" id="steps" min="4" max="32" value="16" />
+          <input type="range" id="steps" min="4" max="60" value="16" />
         </div>
         <h2>Presets</h2>
         <div class="preset-btns">
@@ -487,6 +487,8 @@
     if (i === 10) return 'A';
     if (i === 11) return 'B';
     if (i === 12) return 'C';
+    if (i === 13) return 'D';
+    if (i === 14) return 'E';
     return String(i);
   }
 
