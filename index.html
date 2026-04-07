@@ -332,11 +332,7 @@
           <input type="checkbox" id="nameHasSequence" />
           <label for="nameHasSequence" style="margin:0">Add sequence to filename</label>
         </div>
-        <div class="row check-row">
-          <input type="checkbox" id="transparent" checked />
-          <label for="transparent" style="margin:0">Transparent background</label>
-        </div>
-        <div class="row" id="bgColorRow" style="display:none">
+        <div class="row">
           <label>Background color</label>
           <input type="color" id="bgColor" value="#ffffff" />
         </div>
@@ -839,8 +835,8 @@
 
   function drawPreview(step) {
     const a = readAppearance();
-    const transparent = el('transparent').checked;
-    preview.classList.toggle('transparent-bg', transparent);
+    const transparent = false;
+    preview.classList.toggle('transparent-bg', false);
     syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
@@ -866,8 +862,8 @@
     const step = seq[idx];
     const next = seq[(idx + 1) % seq.length];
     const a = readAppearance();
-    const transparent = el('transparent').checked;
-    preview.classList.toggle('transparent-bg', transparent);
+    const transparent = false;
+    preview.classList.toggle('transparent-bg', false);
     syncPreviewSize();
     drawFrame(ctx, step, next, preview.width, preview.height, transparent, a, t);
     requestAnimationFrame(tick);
@@ -893,7 +889,7 @@
     status.textContent = 'Preparing…';
     const outW = +el('outW').value;
     const outH = syncOutputHeight();
-    const transparent = el('transparent').checked;
+    const transparent = false;
     const frameMs = +el('frameMs').value || 120;
     const seq = buildFrameSequence();
     if (seq.length === 0) {
@@ -1019,11 +1015,6 @@
     if (block) block.style.display = preset === 'custom' ? 'block' : 'none';
   }
 
-  function syncBgRow() {
-    const transparent = el('transparent').checked;
-    const row = el('bgColorRow');
-    if (row) row.style.display = transparent ? 'none' : 'block';
-  }
 
   el('chambers').addEventListener('input', () => {
     const v = +el('chambers').value;
@@ -1067,7 +1058,7 @@
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
-    'frameMs', 'smooth', 'easing', 'transparent', 'loopMode',
+    'frameMs', 'smooth', 'easing', 'loopMode',
     'aspect', 'outW', 'exportQuality', 'nameHasSequence',
   ].forEach((id) => {
     if (!el(id)) return;
@@ -1077,7 +1068,6 @@
         syncPreviewSize();
       }
       if (id === 'pillTilt') syncTiltVal();
-      if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
       if (id === 'nameHasSequence') syncFileExt();
       drawPreview(previewStep);
@@ -1088,7 +1078,6 @@
         syncPreviewSize();
       }
       if (id === 'pillTilt') syncTiltVal();
-      if (id === 'transparent') syncBgRow();
       if (id === 'frameMs' || id === 'loopMode') syncRuntime();
       if (id === 'nameHasSequence') syncFileExt();
       drawPreview(previewStep);
@@ -1135,7 +1124,6 @@
   applyStylePreset('balanced');
   syncStyleUi();
   syncEasingUi();
-  syncBgRow();
   requestAnimationFrame(tick);
 })();
   </script>
