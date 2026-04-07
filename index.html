@@ -711,7 +711,7 @@
   }
 
   function computeGeometry(w, h, appearance) {
-    const { gifPad, spacing, indicatorH, indicatorW } = appearance;
+    const { gifPad, spacing, indicatorH, indicatorW, pillShape } = appearance;
     const pd = Math.max(0, gifPad);
 
     const innerW = w - 2 * pd;
@@ -724,7 +724,8 @@
     const ih = Math.max(0.2, Math.min(0.95, indicatorH));
     const iw = Math.max(0.12, Math.min(0.6, indicatorW));
     const desiredH = Math.max(6, innerH * ih);
-    const desiredW = Math.max(6, desiredH * iw);
+    const widthBoost = pillShape === 'parallelogram' ? 1.35 : 1;
+    const desiredW = Math.max(6, desiredH * iw * widthBoost);
     const desiredG = Math.max(0, Math.min(desiredH * sp, desiredW * 0.6));
 
     const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
@@ -818,10 +819,9 @@
 
       canvasCtx.beginPath();
       if (pillShape === 'parallelogram') {
-        // Intrinsic slant for the parallelogram shape (even if rotation tilt is 0).
-        const slantRad = degToRad(45);
-        // Keep it visibly slanted without collapsing into a thin wedge.
-        const skew = Math.max(0, Math.min(w2 * 0.5, Math.tan(slantRad) * h2));
+        // Slanted rectangle (parallelogram): moderate intrinsic slant.
+        const slantRad = degToRad(25);
+        const skew = Math.max(0, Math.min(w2 * 0.35, Math.tan(slantRad) * h2));
         canvasCtx.moveTo(x2 + skew, y2);
         canvasCtx.lineTo(x2 + w2, y2);
         canvasCtx.lineTo(x2 + w2 - skew, y2 + h2);
