@@ -169,7 +169,16 @@
       border: 1px solid var(--border);
       background: #fff;
     }
-    #preview.opaque-bg { background: #fff; }
+    #preview.transparent-bg {
+      background-color: #fff;
+      background-image:
+        linear-gradient(45deg, #d9d9de 25%, transparent 25%),
+        linear-gradient(-45deg, #d9d9de 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d9d9de 75%),
+        linear-gradient(-45deg, transparent 75%, #d9d9de 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
     .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
     .actions button {
       padding: 0.5rem 1rem;
@@ -529,7 +538,7 @@
   function drawPreview(step) {
     const a = readAppearance();
     const transparent = el('transparent').checked;
-    preview.classList.toggle('opaque-bg', !transparent);
+    preview.classList.toggle('transparent-bg', transparent);
     syncPreviewSize();
     const w = preview.width;
     const h = preview.height;
