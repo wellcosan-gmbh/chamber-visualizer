@@ -820,7 +820,8 @@
       if (pillShape === 'parallelogram') {
         // Intrinsic slant for the parallelogram shape (even if rotation tilt is 0).
         const slantRad = degToRad(45);
-        const skew = Math.max(0, Math.min(w2 * 0.4, Math.tan(slantRad) * h2));
+        // For 45°, we want a clearly visible slant; cap only to avoid self-intersection.
+        const skew = Math.max(0, Math.min(w2 * 0.9, Math.tan(slantRad) * h2));
         canvasCtx.moveTo(x2 + skew, y2);
         canvasCtx.lineTo(x2 + w2, y2);
         canvasCtx.lineTo(x2 + w2 - skew, y2 + h2);
