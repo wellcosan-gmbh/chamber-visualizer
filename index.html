@@ -255,6 +255,10 @@
           <label>Indicator weight</label>
           <input type="range" id="indicatorW" min="0.12" max="0.6" step="0.01" value="0.28" />
         </div>
+        <div class="row">
+          <label>Spacing</label>
+          <input type="range" id="spacing" min="0" max="1.4" step="0.02" value="0.55" />
+        </div>
         <h2>Animation</h2>
         <div class="row">
           <label>Frame duration (ms)</label>
@@ -463,6 +467,7 @@
       pillTilt: el('pillTilt') ? ((+el('pillTilt').value * Math.PI) / 180) : 0,
       indicatorH: el('indicatorH') ? (+el('indicatorH').value || 0.68) : 0.68,
       indicatorW: el('indicatorW') ? (+el('indicatorW').value || 0.28) : 0.28,
+      spacing: el('spacing') ? (+el('spacing').value || 0) : 0,
     };
   }
 
@@ -483,7 +488,7 @@
   }
 
   function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance) {
-    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, indicatorH, indicatorW } = appearance;
+    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt, indicatorH, indicatorW, spacing } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
     if (!transparent) {
@@ -497,7 +502,8 @@
     // Compute a desired geometry, then uniformly scale down only if it doesn't fit.
     const desiredH = Math.max(6, innerH * Math.max(0.2, Math.min(0.95, indicatorH)));
     const desiredW = Math.max(6, desiredH * Math.max(0.12, Math.min(0.6, indicatorW)));
-    const desiredG = Math.max(3, desiredW * 0.55);
+    const gapFactor = Math.max(0, Math.min(1.4, spacing));
+    const desiredG = Math.max(0, desiredW * gapFactor);
     const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
     const fitScale = desiredTotal > innerW ? (innerW / desiredTotal) : 1;
 
@@ -751,6 +757,7 @@
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
     'indicatorH', 'indicatorW',
+    'spacing',
     'bgColor', 'gifPad',
     'frameMs', 'transparent', 'loopMode',
     'aspect', 'outW',
