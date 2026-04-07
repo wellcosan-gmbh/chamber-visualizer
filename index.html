@@ -234,6 +234,18 @@
           <label>Inactive color</label>
           <input type="color" id="inactiveColor" value="#8d8d94" />
         </div>
+        <div class="row">
+          <label>Shape</label>
+          <select id="pillShape">
+            <option value="pill" selected>Pill</option>
+            <option value="round">Round</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Tilt (deg)</label>
+          <input type="range" id="pillTilt" min="-35" max="35" value="0" />
+        </div>
         <h2>Animation</h2>
         <div class="row">
           <label>Frame duration (ms)</label>
@@ -438,6 +450,8 @@
       inactiveColor: el('inactiveColor').value,
       bgColor: el('bgColor') ? el('bgColor').value : '#ffffff',
       gifPad: +el('gifPad').value || 0,
+      pillShape: el('pillShape') ? el('pillShape').value : 'pill',
+      pillTilt: el('pillTilt') ? ((+el('pillTilt').value * Math.PI) / 180) : 0,
     };
   }
 
@@ -458,7 +472,7 @@
   }
 
   function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance) {
-    const { activeColor, inactiveColor, bgColor, gifPad } = appearance;
+    const { activeColor, inactiveColor, bgColor, gifPad, pillShape, pillTilt } = appearance;
     const pd = Math.max(0, gifPad);
     canvasCtx.clearRect(0, 0, w, h);
     if (!transparent) {
@@ -468,15 +482,27 @@
 
     const innerW = w - 2 * pd;
     const innerH = h - 2 * pd;
-    const pillH = Math.max(6, innerH * 0.62);
-    const g = Math.max(4, Math.min(innerW * 0.035, 18));
-    const pw = Math.max(6, (innerW - (nCh - 1) * g) / nCh);
+    // Keep proportions stable across chamber counts/canvas sizes.
+    // Compute a desired geometry, then uniformly scale down only if it doesn't fit.
+    const desiredH = Math.max(6, innerH * 0.68);
+    const desiredW = Math.max(6, desiredH * 0.28);
+    const desiredG = Math.max(3, desiredW * 0.55);
+    const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
+    const fitScale = desiredTotal > innerW ? (innerW / desiredTotal) : 1;
+
+    const pillH = desiredH * fitScale;
+    const pw = desiredW * fitScale;
+    const g = desiredG * fitScale;
     const totalW = nCh * pw + (nCh - 1) * g;
     const startX = pd + (innerW - totalW) / 2;
     const y = pd + (innerH - pillH) / 2;
 
     canvasCtx.save();
-    // no tilt (fixed look)
+    if (pillTilt) {
+      canvasCtx.translate(w / 2, h / 2);
+      canvasCtx.rotate(pillTilt);
+      canvasCtx.translate(-w / 2, -h / 2);
+    }
 
     const offScale = 0.35;
     for (let c = 0; c < nCh; c++) {
@@ -488,7 +514,11 @@
       const h2 = pillH * k;
       const x2 = x + (pw - w2) / 2;
       const y2 = y + (pillH - h2) / 2;
-      const r2 = Math.min(w2, h2) / 2;
+      const baseR = Math.min(w2, h2) / 2;
+      const r2 =
+        pillShape === 'square' ? baseR * 0.12 :
+        pillShape === 'round' ? baseR * 0.45 :
+        baseR; // pill
 
       canvasCtx.save();
       if (on) {
@@ -687,6 +717,7 @@
 
   [
     'activeColor', 'inactiveColor',
+    'pillShape', 'pillTilt',
     'bgColor', 'gifPad',
     'frameMs', 'transparent', 'loopMode',
     'aspect', 'outW',
