@@ -339,7 +339,7 @@
         <div class="row">
           <label>Background color</label>
           <input type="color" id="bgColor" value="#ffffff" />
-          <div class="hint">If Transparent background is enabled, this color is used as the matte (prevents pink edges).</div>
+          <div class="hint">For transparent GIFs, this color is only a preview/matte reference.</div>
         </div>
       </div>
     </details>
@@ -931,9 +931,10 @@
     const quality = q === 'high' ? 5 : q === 'balanced' ? 8 : 12;
     const workers = q === 'high' ? 2 : 4;
 
-    const matteHex = (el('bgColor') && el('bgColor').value) ? el('bgColor').value : '#ffffff';
-    const keyBgHex = matteHex;
-    const keyBg = parseInt(String(matteHex).replace('#', ''), 16);
+    // Use a fixed transparency key color and a global palette to prevent
+    // occasional frames losing the transparent index during quantization.
+    const keyBgHex = '#00ff00';
+    const keyBg = 0x00ff00;
     const gif = new GIF({
       workers,
       quality,
@@ -941,7 +942,7 @@
       height: outH,
       workerScript: GIF_WORKER,
       dither: false,
-      ...(transparent ? { transparent: keyBg, background: keyBgHex } : {}),
+      ...(transparent ? { transparent: keyBg, background: keyBgHex, globalPalette: true } : {}),
     });
 
     const appearance = readAppearance();
