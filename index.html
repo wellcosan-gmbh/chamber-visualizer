@@ -498,26 +498,24 @@
     const y = pd + (innerH - pillH) / 2;
 
     canvasCtx.save();
-    if (pillTilt) {
-      canvasCtx.translate(w / 2, h / 2);
-      canvasCtx.rotate(pillTilt);
-      canvasCtx.translate(-w / 2, -h / 2);
-    }
-
     const offScale = 0.35;
     for (let c = 0; c < nCh; c++) {
       const on = grid[c][stepIndex % nSteps];
       const x = startX + c * (pw + g);
 
       const k = on ? 1 : offScale;
-      const w2 = pw * k;
-      const h2 = pillH * k;
+      const baseSize = Math.min(pw, pillH) * k;
+      const isSquare = pillShape === 'square';
+      const isRound = pillShape === 'round';
+
+      const w2 = (isSquare || isRound) ? baseSize : (pw * k);
+      const h2 = (isSquare || isRound) ? baseSize : (pillH * k);
       const x2 = x + (pw - w2) / 2;
       const y2 = y + (pillH - h2) / 2;
       const baseR = Math.min(w2, h2) / 2;
       const r2 =
-        pillShape === 'square' ? baseR * 0.12 :
-        pillShape === 'round' ? baseR * 0.45 :
+        pillShape === 'square' ? 0 :
+        pillShape === 'round' ? baseR :
         baseR; // pill
 
       canvasCtx.save();
@@ -529,6 +527,14 @@
       } else {
         canvasCtx.shadowColor = 'transparent';
         canvasCtx.shadowBlur = 0;
+      }
+
+      const cx = x2 + w2 / 2;
+      const cy = y2 + h2 / 2;
+      if (pillTilt) {
+        canvasCtx.translate(cx, cy);
+        canvasCtx.rotate(pillTilt);
+        canvasCtx.translate(-cx, -cy);
       }
 
       canvasCtx.beginPath();
