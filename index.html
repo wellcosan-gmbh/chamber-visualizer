@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chamber Visualizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <style>
+    :root {
+      --bg: #12141a;
+      --panel: #1a1d26;
+      --border: #2d3344;
+      --text: #e8eaef;
+      --muted: #8b92a8;
+      --accent: #5b8cff;
+      --on: #3d9fff;
+      --off: #2a303c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.25rem;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+    .sub { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.25rem; }
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .grid-layout { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .panel h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .row { margin-bottom: 0.75rem; }
+    .row label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    input[type="range"] { width: 100%; }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+    select {
+      width: 100%;
+      padding: 0.4rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .preset-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .preset-btns button {
+      font-size: 0.72rem;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .preset-btns button:hover { border-color: var(--accent); color: var(--accent); }
+    .timeline-wrap { overflow-x: auto; margin-top: 0.5rem; }
+    #timeline {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      user-select: none;
+    }
+    .tl-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .tl-row:last-child { border-bottom: none; }
+    .tl-label {
+      width: 2rem;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: #151820;
+      border-right: 1px solid var(--border);
+    }
+    .tl-cells { display: flex; }
+    .tl-cell {
+      width: 22px;
+      height: 22px;
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      background: var(--off);
+    }
+    .tl-cell:last-child { border-right: none; }
+    .tl-cell.on { background: var(--on); }
+    .tl-cell:hover { filter: brightness(1.15); }
+    .tl-header {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .tl-corner {
+      width: 2rem;
+      flex-shrink: 0;
+      background: #151820;
+      border-right: 1px solid var(--border);
+    }
+    .tl-step-h {
+      width: 22px;
+      height: 18px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      font-size: 0.55rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #preview {
+      display: block;
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background-image:
+        linear-gradient(45deg, #222 25%, transparent 25%),
+        linear-gradient(-45deg, #222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222 75%),
+        linear-gradient(-45deg, transparent 75%, #222 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    }
+    #preview.opaque-bg { background: #0d0f14; background-image: none; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .actions button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--muted); }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; }
+    .export-status { font-size: 0.8rem; color: var(--muted); min-height: 1.2em; }
+    .check-row { display: flex; align-items: center; gap: 0.5rem; }
+    .check-row input { width: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Chamber Visualizer</h1>
+    <p class="sub">Edit the timeline, tune the look, export an animated GIF.</p>
+    <div class="grid-layout">
+      <aside class="panel">
+        <h2>Layout</h2>
+        <div class="row">
+          <label>Chambers <span id="chamberVal"></span></label>
+          <input type="range" id="chambers" min="4" max="12" value="8" />
+        </div>
+        <div class="row">
+          <label>Time steps <span id="stepVal"></span></label>
+          <input type="range" id="steps" min="4" max="32" value="16" />
+        </div>
+        <h2>Presets</h2>
+        <div class="preset-btns">
+          <button type="button" data-preset="sequential">Sequential</button>
+          <button type="button" data-preset="parallel">Parallel</button>
+          <button type="button" data-preset="wave">Wave</button>
+          <button type="button" data-preset="alternating">Alternating</button>
+          <button type="button" data-preset="center">Center-out</button>
+        </div>
+        <h2>Pill appearance</h2>
+        <div class="row">
+          <label>Pill width (px)</label>
+          <input type="range" id="pillW" min="16" max="80" value="36" />
+        </div>
+        <div class="row">
+          <label>Height ratio</label>
+          <input type="range" id="pillRatio" min="0.25" max="1" step="0.05" value="0.55" />
+        </div>
+        <div class="row">
+          <label>Gap (px)</label>
+          <input type="range" id="pillGap" min="0" max="24" value="6" />
+        </div>
+        <div class="row">
+          <label>Tilt (deg)</label>
+          <input type="range" id="pillTilt" min="-35" max="35" value="12" />
+        </div>
+        <div class="row">
+          <label>Padding (px)</label>
+          <input type="range" id="pillPad" min="8" max="64" value="24" />
+        </div>
+        <h2>Animation</h2>
+        <div class="row">
+          <label>Frame duration (ms)</label>
+          <input type="number" id="frameMs" min="40" max="800" step="10" value="120" />
+        </div>
+        <div class="row">
+          <label>Loop mode</label>
+          <select id="loopMode">
+            <option value="loop">Loop</option>
+            <option value="once">Once</option>
+            <option value="pingpong">Ping-Pong</option>
+          </select>
+        </div>
+        <div class="row check-row">
+          <input type="checkbox" id="transparent" checked />
+          <label for="transparent" style="margin:0">Transparent background</label>
+        </div>
+        <h2>Export</h2>
+        <div class="row">
+          <label>Output width (px)</label>
+          <input type="number" id="outW" min="120" max="1200" step="10" value="480" />
+        </div>
+        <div class="row">
+          <label>Output height (px)</label>
+          <input type="number" id="outH" min="80" max="800" step="10" value="200" />
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="btnExport">Export GIF</button>
+          <button type="button" class="btn-secondary" id="btnClear">Clear timeline</button>
+        </div>
+        <p class="export-status" id="exportStatus"></p>
+      </aside>
+      <main class="panel">
+        <h2>Preview</h2>
+        <canvas id="preview" width="640" height="240"></canvas>
+        <p class="hint">Timeline: click a cell to toggle. Click and drag to paint.</p>
+        <h2>Timeline</h2>
+        <div class="timeline-wrap">
+          <div id="timeline"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+(function () {
+  const GIF_WORKER = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
+
+  const el = (id) => document.getElementById(id);
+  const preview = el('preview');
+  const ctx = preview.getContext('2d');
+
+  let nCh = 8;
+  let nSteps = 16;
+  /** @type {boolean[][]} */
+  let grid = [];
+
+  let paintValue = null;
+  let painting = false;
+
+  function initGrid() {
+    grid = [];
+    for (let c = 0; c < nCh; c++) {
+      const row = [];
+      for (let s = 0; s < nSteps; s++) row.push(false);
+      grid.push(row);
+    }
+  }
+
+  function centerOrder(n) {
+    const mid = (n - 1) / 2;
+    return Array.from({ length: n }, (_, i) => i).sort(
+      (a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b
+    );
+  }
+
+  function applyPreset(name) {
+    initGrid();
+    if (name === 'sequential') {
+      for (let s = 0; s < nSteps; s++) {
+        grid[s % nCh][s] = true;
+      }
+    } else if (name === 'parallel') {
+      for (let c = 0; c < nCh; c++) {
+        for (let s = 0; s < nSteps; s++) grid[c][s] = true;
+      }
+    } else if (name === 'wave') {
+      const w = Math.max(2, Math.ceil(nCh / 3));
+      for (let s = 0; s < nSteps; s++) {
+        const start = s % nCh;
+        for (let k = 0; k < w; k++) {
+          grid[(start + k) % nCh][s] = true;
+        }
+      }
+    } else if (name === 'alternating') {
+      for (let s = 0; s < nSteps; s++) {
+        const evenPhase = s % 2 === 0;
+        for (let c = 0; c < nCh; c++) {
+          const isEven = c % 2 === 0;
+          grid[c][s] = evenPhase ? isEven : !isEven;
+        }
+      }
+    } else if (name === 'center') {
+      const order = centerOrder(nCh);
+      for (let s = 0; s < nSteps; s++) {
+        const idx = order[s % order.length];
+        grid[idx][s] = true;
+      }
+    }
+    renderTimeline();
+    drawPreview(0);
+  }
+
+  function renderTimeline() {
+    const host = el('timeline');
+    host.innerHTML = '';
+    const header = document.createElement('div');
+    header.className = 'tl-header';
+    header.appendChild(document.createElement('div')).className = 'tl-corner';
+    const cellsH = document.createElement('div');
+    cellsH.className = 'tl-cells';
+    for (let s = 0; s < nSteps; s++) {
+      const h = document.createElement('div');
+      h.className = 'tl-step-h';
+      h.textContent = s + 1;
+      cellsH.appendChild(h);
+    }
+    header.appendChild(cellsH);
+    host.appendChild(header);
+
+    for (let c = 0; c < nCh; c++) {
+      const row = document.createElement('div');
+      row.className = 'tl-row';
+      const lab = document.createElement('div');
+      lab.className = 'tl-label';
+      lab.textContent = c + 1;
+      row.appendChild(lab);
+      const cells = document.createElement('div');
+      cells.className = 'tl-cells';
+      for (let s = 0; s < nSteps; s++) {
+        const cell = document.createElement('div');
+        cell.className = 'tl-cell' + (grid[c][s] ? ' on' : '');
+        cell.dataset.c = String(c);
+        cell.dataset.s = String(s);
+        cell.addEventListener('mousedown', onCellDown);
+        cell.addEventListener('mouseenter', onCellEnter);
+        cells.appendChild(cell);
+      }
+      row.appendChild(cells);
+      host.appendChild(row);
+    }
+  }
+
+  function onCellDown(e) {
+    e.preventDefault();
+    painting = true;
+    const t = e.currentTarget;
+    const c = +t.dataset.c;
+    const s = +t.dataset.s;
+    paintValue = !grid[c][s];
+    grid[c][s] = paintValue;
+    t.classList.toggle('on', paintValue);
+  }
+
+  function onCellEnter(e) {
+    if (!painting) return;
+    const t = e.currentTarget;
+    const c = +t.dataset.c;
+    const s = +t.dataset.s;
+    grid[c][s] = paintValue;
+    t.classList.toggle('on', paintValue);
+  }
+
+  document.addEventListener('mouseup', () => {
+    painting = false;
+    paintValue = null;
+  });
+
+  function readAppearance() {
+    return {
+      pillW: +el('pillW').value,
+      ratio: +el('pillRatio').value,
+      gap: +el('pillGap').value,
+      tilt: (+el('pillTilt').value * Math.PI) / 180,
+      pad: +el('pillPad').value,
+    };
+  }
+
+  function drawFrame(canvasCtx, stepIndex, w, h, transparent, appearance) {
+    const refW = 640;
+    const refH = 240;
+    const scale = Math.min(w / refW, h / refH);
+    const { pillW, ratio, gap, tilt, pad } = appearance;
+    const pw = pillW * scale;
+    const g = gap * scale;
+    const pd = pad * scale;
+    const pillH = pw * ratio;
+    if (transparent) {
+      canvasCtx.clearRect(0, 0, w, h);
+    } else {
+      canvasCtx.fillStyle = '#0d0f14';
+      canvasCtx.fillRect(0, 0, w, h);
+    }
+
+    const innerW = w - 2 * pd;
+    const innerH = h - 2 * pd;
+    const totalW = nCh * pw + (nCh - 1) * g;
+    const startX = pd + (innerW - totalW) / 2;
+    const y = pd + (innerH - pillH) / 2;
+
+    canvasCtx.save();
+    canvasCtx.translate(w / 2, h / 2);
+    canvasCtx.rotate(tilt);
+    canvasCtx.translate(-w / 2, -h / 2);
+
+    for (let c = 0; c < nCh; c++) {
+      const on = grid[c][stepIndex % nSteps];
+      const x = startX + c * (pw + g);
+      const rx = pw / 2;
+      const ry = pillH / 2;
+
+      canvasCtx.beginPath();
+      canvasCtx.roundRect(x, y, pw, pillH, Math.min(rx, ry) * 0.9);
+      canvasCtx.fillStyle = on ? '#3d9fff' : '#2a3344';
+      canvasCtx.fill();
+      canvasCtx.strokeStyle = on ? '#7eb8ff' : '#3d4558';
+      canvasCtx.lineWidth = Math.max(1, pw * 0.06);
+      canvasCtx.stroke();
+    }
+
+    canvasCtx.restore();
+  }
+
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      this.moveTo(x + rr, y);
+      this.arcTo(x + w, y, x + w, y + h, rr);
+      this.arcTo(x + w, y + h, x, y + h, rr);
+      this.arcTo(x, y + h, x, y, rr);
+      this.arcTo(x, y, x + w, y, rr);
+      this.closePath();
+    };
+  }
+
+  let previewStep = 0;
+  let lastT = 0;
+
+  function drawPreview(step) {
+    const a = readAppearance();
+    const transparent = el('transparent').checked;
+    preview.classList.toggle('opaque-bg', !transparent);
+    const w = preview.width;
+    const h = preview.height;
+    drawFrame(ctx, step, w, h, transparent, a);
+  }
+
+  function tick(ts) {
+    const ms = +el('frameMs').value || 120;
+    if (ts - lastT >= ms) {
+      lastT = ts;
+      const seq = buildFrameSequence();
+      if (seq.length === 0) {
+        drawPreview(0);
+      } else {
+        drawPreview(seq[previewStep]);
+        previewStep = (previewStep + 1) % seq.length;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function buildFrameSequence() {
+    const mode = el('loopMode').value;
+    const indices = [];
+    for (let s = 0; s < nSteps; s++) indices.push(s);
+    if (mode === 'once') return indices;
+    if (mode === 'loop') return indices;
+    if (mode === 'pingpong') {
+      if (nSteps <= 1) return indices;
+      const back = [];
+      for (let s = nSteps - 2; s >= 1; s--) back.push(s);
+      return indices.concat(back);
+    }
+    return indices;
+  }
+
+  function exportGif() {
+    const status = el('exportStatus');
+    status.textContent = 'Encoding…';
+    const outW = +el('outW').value;
+    const outH = +el('outH').value;
+    const transparent = el('transparent').checked;
+    const frameMs = +el('frameMs').value || 120;
+    const seq = buildFrameSequence();
+    if (seq.length === 0) {
+      status.textContent = 'Add steps to the timeline first.';
+      return;
+    }
+
+    const off = document.createElement('canvas');
+    off.width = outW;
+    off.height = outH;
+    const octx = off.getContext('2d');
+
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width: outW,
+      height: outH,
+      workerScript: GIF_WORKER,
+    });
+
+    const appearance = readAppearance();
+
+    seq.forEach((stepIdx) => {
+      drawFrame(octx, stepIdx, outW, outH, transparent, appearance);
+      gif.addFrame(octx, { copy: true, delay: frameMs });
+    });
+
+    const mode = el('loopMode').value;
+    gif.setRepeat(mode === 'once' ? -1 : 0);
+
+    gif.on('finished', function (blob) {
+      status.textContent = 'Done.';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'chamber-sequence.gif';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    gif.on('progress', function (p) {
+      status.textContent = 'Encoding… ' + Math.round(p * 100) + '%';
+    });
+
+    try {
+      gif.render();
+    } catch (err) {
+      status.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+    }
+  }
+
+  function syncChamberStepLabels() {
+    el('chamberVal').textContent = '(' + nCh + ')';
+    el('stepVal').textContent = '(' + nSteps + ')';
+  }
+
+  el('chambers').addEventListener('input', () => {
+    const v = +el('chambers').value;
+    if (v === nCh) return;
+    nCh = v;
+    initGrid();
+    syncChamberStepLabels();
+    renderTimeline();
+    drawPreview(0);
+  });
+
+  el('steps').addEventListener('input', () => {
+    const v = +el('steps').value;
+    if (v === nSteps) return;
+    nSteps = v;
+    initGrid();
+    syncChamberStepLabels();
+    renderTimeline();
+    drawPreview(0);
+  });
+
+  document.querySelectorAll('[data-preset]').forEach((btn) => {
+    btn.addEventListener('click', () => applyPreset(btn.getAttribute('data-preset')));
+  });
+
+  el('btnClear').addEventListener('click', () => {
+    initGrid();
+    renderTimeline();
+    drawPreview(0);
+  });
+
+  el('btnExport').addEventListener('click', exportGif);
+
+  [
+    'pillW', 'pillRatio', 'pillGap', 'pillTilt', 'pillPad',
+    'frameMs', 'transparent', 'loopMode',
+  ].forEach((id) => {
+    el(id).addEventListener('input', () => drawPreview(previewStep));
+    el(id).addEventListener('change', () => drawPreview(previewStep));
+  });
+
+  initGrid();
+  applyPreset('sequential');
+  syncChamberStepLabels();
+  requestAnimationFrame(tick);
+})();
+  </script>
+</body>
+</html>
