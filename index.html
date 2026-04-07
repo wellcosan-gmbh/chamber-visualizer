@@ -208,6 +208,12 @@
     <p class="sub">Edit the timeline, tune the look, export an animated GIF.</p>
     <div class="grid-layout">
       <aside class="panel">
+        <div class="actions" style="margin-top:0; margin-bottom: 0.75rem;">
+          <button type="button" class="btn-primary" id="btnExport">Export GIF</button>
+          <button type="button" class="btn-secondary" id="btnClear">Clear timeline</button>
+        </div>
+        <p class="export-status" id="exportStatus" style="margin-top:0"></p>
+
         <h2>Layout</h2>
         <div class="row">
           <label>Chambers <span id="chamberVal"></span></label>
@@ -298,6 +304,11 @@
         </div>
         <h2>Export</h2>
         <div class="row">
+          <label>File name</label>
+          <input type="text" id="fileName" value="chamber-sequence" />
+          <div class="hint">“.gif” will be added automatically.</div>
+        </div>
+        <div class="row">
           <label>Aspect ratio</label>
           <select id="aspect">
             <option value="1:1">1 / 1</option>
@@ -339,11 +350,6 @@
           <label>Total runtime</label>
           <div id="runtime" class="export-status"></div>
         </div>
-        <div class="actions">
-          <button type="button" class="btn-primary" id="btnExport">Export GIF</button>
-          <button type="button" class="btn-secondary" id="btnClear">Clear timeline</button>
-        </div>
-        <p class="export-status" id="exportStatus"></p>
       </aside>
       <main class="panel">
         <h2>Preview</h2>
@@ -819,7 +825,9 @@
       status.textContent = 'Done.';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'chamber-sequence.gif';
+      const rawName = (el('fileName') && el('fileName').value) ? el('fileName').value.trim() : 'chamber-sequence';
+      const safe = (rawName || 'chamber-sequence').replace(/[\\/:*?"<>|]+/g, '-');
+      a.download = safe.toLowerCase().endsWith('.gif') ? safe : (safe + '.gif');
       a.click();
       URL.revokeObjectURL(a.href);
     });
