@@ -232,7 +232,22 @@
             <option value="balanced" selected>Balanced</option>
             <option value="compact">Compact</option>
             <option value="airy">Airy</option>
+            <option value="custom">Custom</option>
           </select>
+        </div>
+        <div id="customStyle" style="display:none">
+          <div class="row">
+            <label>Indicator height</label>
+            <input type="range" id="indicatorH" min="0.2" max="0.95" step="0.01" value="0.68" />
+          </div>
+          <div class="row">
+            <label>Indicator thickness</label>
+            <input type="range" id="indicatorW" min="0.12" max="0.6" step="0.01" value="0.28" />
+          </div>
+          <div class="row">
+            <label>Spacing</label>
+            <input type="range" id="spacing" min="0" max="0.9" step="0.02" value="0.45" />
+          </div>
         </div>
         <div class="row">
           <label>Active color</label>
@@ -254,10 +269,6 @@
         <div class="row">
           <label>Tilt (deg) <span id="tiltVal"></span></label>
           <input type="range" id="pillTilt" min="-35" max="35" value="0" />
-        </div>
-        <div class="row">
-          <label>Spacing</label>
-          <input type="range" id="spacing" min="0" max="1.4" step="0.02" value="0.55" />
         </div>
         <h2>Animation</h2>
         <div class="row">
@@ -301,6 +312,15 @@
         <div class="row">
           <label>Output height (auto)</label>
           <input type="number" id="outH" min="80" max="2000" step="1" value="360" disabled />
+        </div>
+        <div class="row">
+          <label>Export quality</label>
+          <select id="exportQuality">
+            <option value="fast" selected>Fast (recommended)</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High</option>
+          </select>
+          <div class="hint">Higher quality can be slower.</div>
         </div>
         <div class="row">
           <label>Total runtime</label>
@@ -465,23 +485,28 @@
       gifPad: +el('gifPad').value || 0,
       pillShape: el('pillShape') ? el('pillShape').value : 'pill',
       pillTilt: el('pillTilt') ? ((+el('pillTilt').value * Math.PI) / 180) : 0,
-      spacing: el('spacing') ? (+el('spacing').value || 0) : 0,
+      indicatorH: el('indicatorH') ? (+el('indicatorH').value || 0.68) : 0.68,
+      indicatorW: el('indicatorW') ? (+el('indicatorW').value || 0.28) : 0.28,
+      spacing: el('spacing') ? (+el('spacing').value || 0.55) : 0.55,
     };
   }
 
   function computeGeometry(w, h, appearance) {
-    const { gifPad, spacing } = appearance;
+    const { gifPad, spacing, indicatorH, indicatorW } = appearance;
     const pd = Math.max(0, gifPad);
 
     const innerW = w - 2 * pd;
     const innerH = h - 2 * pd;
 
-    const sp = Math.max(0, Math.min(1.4, spacing));
+    // Keep gaps visually subtle in all scenarios.
+    const sp = Math.max(0, Math.min(0.9, spacing));
 
     // All design knobs are height-based so the look stays consistent across aspect ratios.
-    const desiredH = Math.max(6, innerH * 0.68);
-    const desiredW = Math.max(6, desiredH * 0.28);
-    const desiredG = Math.max(0, desiredH * sp);
+    const ih = Math.max(0.2, Math.min(0.95, indicatorH));
+    const iw = Math.max(0.12, Math.min(0.6, indicatorW));
+    const desiredH = Math.max(6, innerH * ih);
+    const desiredW = Math.max(6, desiredH * iw);
+    const desiredG = Math.max(0, Math.min(desiredH * sp, desiredW * 0.6));
 
     const desiredTotal = nCh * desiredW + (nCh - 1) * desiredG;
     const fitScale = desiredTotal > innerW ? (innerW / desiredTotal) : 1;
@@ -649,7 +674,7 @@
 
   function exportGif() {
     const status = el('exportStatus');
-    status.textContent = 'Encoding…';
+    status.textContent = 'Preparing…';
     const outW = +el('outW').value;
     const outH = syncOutputHeight();
     const transparent = el('transparent').checked;
@@ -659,15 +684,23 @@
       status.textContent = 'Add steps to the timeline first.';
       return;
     }
+    if (!Number.isFinite(outW) || outW <= 0) {
+      status.textContent = 'Invalid output width.';
+      return;
+    }
 
     const off = document.createElement('canvas');
     off.width = outW;
     off.height = outH;
-    const octx = off.getContext('2d');
+    const octx = off.getContext('2d', { willReadFrequently: true });
+
+    const q = (el('exportQuality') && el('exportQuality').value) ? el('exportQuality').value : 'fast';
+    const quality = q === 'high' ? 6 : q === 'balanced' ? 10 : 16; // lower = better quality, slower
+    const workers = q === 'high' ? 2 : 4;
 
     const gif = new GIF({
-      workers: 2,
-      quality: 10,
+      workers,
+      quality,
       width: outW,
       height: outH,
       workerScript: GIF_WORKER,
@@ -675,6 +708,7 @@
 
     const appearance = readAppearance();
 
+    status.textContent = 'Rendering frames… (0/' + seq.length + ')';
     seq.forEach((stepIdx) => {
       drawFrame(octx, stepIdx, outW, outH, transparent, appearance);
       gif.addFrame(octx, { copy: true, delay: frameMs });
@@ -683,7 +717,16 @@
     const mode = el('loopMode').value;
     gif.setOption('repeat', mode === 'once' ? -1 : 0);
 
+    let lastProgressAt = Date.now();
+    const watchdog = window.setInterval(() => {
+      if (Date.now() - lastProgressAt < 15000) return;
+      window.clearInterval(watchdog);
+      try { gif.abort(); } catch (_) {}
+      status.textContent = 'Export stalled. Try Fast quality, fewer frames, or run via http://localhost.';
+    }, 2000);
+
     gif.on('finished', function (blob) {
+      window.clearInterval(watchdog);
       status.textContent = 'Done.';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -693,12 +736,14 @@
     });
 
     gif.on('progress', function (p) {
+      lastProgressAt = Date.now();
       status.textContent = 'Encoding… ' + Math.round(p * 100) + '%';
     });
 
     try {
       gif.render();
     } catch (err) {
+      window.clearInterval(watchdog);
       status.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
     }
   }
@@ -725,13 +770,21 @@
   function applyStylePreset(name) {
     const preset = name || 'balanced';
     const map = {
-      compact:  { spacing: 0.35 },
-      balanced: { spacing: 0.55 },
-      airy:     { spacing: 0.9  },
+      compact:  { spacing: 0.25 },
+      balanced: { spacing: 0.45 },
+      airy:     { spacing: 0.65 },
     };
     const v = map[preset];
     if (!v) return;
+    if (el('indicatorH')) el('indicatorH').value = '0.68';
+    if (el('indicatorW')) el('indicatorW').value = '0.28';
     if (el('spacing')) el('spacing').value = String(v.spacing);
+  }
+
+  function syncStyleUi() {
+    const preset = el('stylePreset') ? el('stylePreset').value : 'balanced';
+    const block = el('customStyle');
+    if (block) block.style.display = preset === 'custom' ? 'block' : 'none';
   }
 
   function syncBgRow() {
@@ -778,10 +831,9 @@
   [
     'activeColor', 'inactiveColor',
     'pillShape', 'pillTilt',
-    'spacing',
     'bgColor', 'gifPad',
     'frameMs', 'transparent', 'loopMode',
-    'aspect', 'outW',
+    'aspect', 'outW', 'exportQuality',
   ].forEach((id) => {
     if (!el(id)) return;
     el(id).addEventListener('input', () => {
@@ -806,10 +858,17 @@
     });
   });
 
+  ['indicatorH', 'indicatorW', 'spacing'].forEach((id) => {
+    if (!el(id)) return;
+    el(id).addEventListener('input', () => drawPreview(previewStep));
+    el(id).addEventListener('change', () => drawPreview(previewStep));
+  });
+
   if (el('stylePreset')) {
     el('stylePreset').addEventListener('input', () => {
       const v = el('stylePreset').value;
-      applyStylePreset(v);
+      if (v !== 'custom') applyStylePreset(v);
+      syncStyleUi();
       drawPreview(previewStep);
     });
   }
@@ -822,6 +881,7 @@
   syncRuntime();
   syncTiltVal();
   applyStylePreset('balanced');
+  syncStyleUi();
   syncBgRow();
   requestAnimationFrame(tick);
 })();
