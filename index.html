@@ -537,6 +537,18 @@
     }
   }
 
+  function resizeGrid(nextCh, nextSteps) {
+    const newGrid = [];
+    for (let c = 0; c < nextCh; c++) {
+      const row = [];
+      for (let s = 0; s < nextSteps; s++) {
+        row.push(!!(grid[c] && grid[c][s]));
+      }
+      newGrid.push(row);
+    }
+    grid = newGrid;
+  }
+
   function centerOrder(n) {
     const mid = (n - 1) / 2;
     return Array.from({ length: n }, (_, i) => i).sort(
@@ -1119,8 +1131,8 @@
   el('chambers').addEventListener('input', () => {
     const v = +el('chambers').value;
     if (v === nCh) return;
+    resizeGrid(v, nSteps);
     nCh = v;
-    initGrid();
     syncChamberStepLabels();
     renderTimeline();
     drawPreview(0);
@@ -1131,8 +1143,8 @@
   el('steps').addEventListener('input', () => {
     const v = +el('steps').value;
     if (v === nSteps) return;
+    resizeGrid(nCh, v);
     nSteps = v;
-    initGrid();
     syncChamberStepLabels();
     renderTimeline();
     drawPreview(0);
