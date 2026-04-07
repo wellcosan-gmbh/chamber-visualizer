@@ -822,7 +822,9 @@
         b: lerp(iRgb.b, aRgb.b, v),
       };
       canvasCtx.fillStyle = rgbToCss(col);
-      canvasCtx.globalAlpha = 0.95 + 0.05 * v;
+      // Avoid semi-transparent pixels blending with the transparency key color.
+      // This improves GIF transparency consistency across frames.
+      canvasCtx.globalAlpha = 1;
       canvasCtx.fill();
 
       canvasCtx.restore();
@@ -942,7 +944,7 @@
       height: outH,
       workerScript: GIF_WORKER,
       dither: false,
-      ...(transparent ? { transparent: keyBg, background: keyBgHex, globalPalette: true } : {}),
+      ...(transparent ? { transparent: keyBg, globalPalette: true } : {}),
     });
 
     const appearance = readAppearance();
