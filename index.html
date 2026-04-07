@@ -830,6 +830,16 @@
       canvasCtx.restore();
     }
 
+    // Force the key color into the palette on every frame
+    // (stabilizes transparency across frames when using per-frame quantization).
+    if (transparent && appearance._keyBgColor) {
+      const prevOp = canvasCtx.globalCompositeOperation;
+      canvasCtx.globalCompositeOperation = 'source-over';
+      canvasCtx.fillStyle = appearance._keyBgColor;
+      canvasCtx.fillRect(0, 0, 1, 1);
+      canvasCtx.globalCompositeOperation = prevOp;
+    }
+
     canvasCtx.restore();
   }
 
@@ -933,10 +943,11 @@
     const quality = q === 'high' ? 5 : q === 'balanced' ? 8 : 12;
     const workers = q === 'high' ? 2 : 4;
 
-    // Use a fixed transparency key color and a global palette to prevent
-    // occasional frames losing the transparent index during quantization.
-    const keyBgHex = '#00ff00';
-    const keyBg = 0x00ff00;
+    // Transparency in GIFs is keyed. To avoid colored fringes, use the selected
+    // background color as the matte+key (best results when composited on that color).
+    const matteHex = (el('bgColor') && el('bgColor').value) ? el('bgColor').value : '#ffffff';
+    const keyBgHex = matteHex;
+    const keyBg = parseInt(String(matteHex).replace('#', ''), 16);
     const gif = new GIF({
       workers,
       quality,
