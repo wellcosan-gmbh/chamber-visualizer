@@ -415,7 +415,7 @@
         </div>
         <div class="row">
           <label>Tilt (deg) <span id="tiltVal"></span></label>
-          <input type="range" id="pillTilt" min="-35" max="35" value="0" />
+          <input type="range" id="pillTilt" min="-35" max="35" value="20" />
         </div>
         <h2>Animation</h2>
         <div class="row">
@@ -668,6 +668,7 @@
   }
 
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  function degToRad(deg) { return (deg * Math.PI) / 180; }
   function easeInCubic(t) {
     const x = clamp01(t);
     return x * x * x;
@@ -817,7 +818,9 @@
 
       canvasCtx.beginPath();
       if (pillShape === 'parallelogram') {
-        const skew = Math.max(0, Math.min(w2 * 0.35, w2 * 0.22));
+        // Intrinsic slant for the parallelogram shape (even if rotation tilt is 0).
+        const slantRad = degToRad(20);
+        const skew = Math.max(0, Math.min(w2 * 0.4, Math.tan(slantRad) * h2));
         canvasCtx.moveTo(x2 + skew, y2);
         canvasCtx.lineTo(x2 + w2, y2);
         canvasCtx.lineTo(x2 + w2 - skew, y2 + h2);
