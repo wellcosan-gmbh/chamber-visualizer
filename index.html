@@ -13,8 +13,8 @@
       --text: #e8eaef;
       --muted: #8b92a8;
       --accent: #5b8cff;
-      --on: #3d9fff;
-      --off: #2a303c;
+      --on: #7a1f5c;
+      --off: #8d8d94;
     }
     * { box-sizing: border-box; }
     body {
@@ -158,15 +158,9 @@
       max-width: 100%;
       border-radius: 8px;
       border: 1px solid var(--border);
-      background-image:
-        linear-gradient(45deg, #222 25%, transparent 25%),
-        linear-gradient(-45deg, #222 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #222 75%),
-        linear-gradient(-45deg, transparent 75%, #222 75%);
-      background-size: 12px 12px;
-      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+      background: #fff;
     }
-    #preview.opaque-bg { background: #0d0f14; background-image: none; }
+    #preview.opaque-bg { background: #fff; }
     .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
     .actions button {
       padding: 0.5rem 1rem;
@@ -430,10 +424,9 @@
     const g = gap * scale;
     const pd = pad * scale;
     const pillH = pw * ratio;
-    if (transparent) {
-      canvasCtx.clearRect(0, 0, w, h);
-    } else {
-      canvasCtx.fillStyle = '#0d0f14';
+    canvasCtx.clearRect(0, 0, w, h);
+    if (!transparent) {
+      canvasCtx.fillStyle = '#ffffff';
       canvasCtx.fillRect(0, 0, w, h);
     }
 
@@ -448,19 +441,36 @@
     canvasCtx.rotate(tilt);
     canvasCtx.translate(-w / 2, -h / 2);
 
+    const offScale = 0.35;
     for (let c = 0; c < nCh; c++) {
       const on = grid[c][stepIndex % nSteps];
       const x = startX + c * (pw + g);
-      const rx = pw / 2;
-      const ry = pillH / 2;
+
+      const k = on ? 1 : offScale;
+      const w2 = pw * k;
+      const h2 = pillH * k;
+      const x2 = x + (pw - w2) / 2;
+      const y2 = y + (pillH - h2) / 2;
+      const r2 = Math.min(w2, h2) / 2;
+
+      canvasCtx.save();
+      if (on) {
+        canvasCtx.shadowColor = 'rgba(122, 31, 92, 0.22)';
+        canvasCtx.shadowBlur = Math.max(6, w2 * 0.22);
+        canvasCtx.shadowOffsetX = 0;
+        canvasCtx.shadowOffsetY = Math.max(2, h2 * 0.05);
+      } else {
+        canvasCtx.shadowColor = 'transparent';
+        canvasCtx.shadowBlur = 0;
+      }
 
       canvasCtx.beginPath();
-      canvasCtx.roundRect(x, y, pw, pillH, Math.min(rx, ry) * 0.9);
-      canvasCtx.fillStyle = on ? '#3d9fff' : '#2a3344';
+      canvasCtx.roundRect(x2, y2, w2, h2, r2);
+      canvasCtx.fillStyle = on ? '#7a1f5c' : '#8d8d94';
+      canvasCtx.globalAlpha = on ? 1 : 0.95;
       canvasCtx.fill();
-      canvasCtx.strokeStyle = on ? '#7eb8ff' : '#3d4558';
-      canvasCtx.lineWidth = Math.max(1, pw * 0.06);
-      canvasCtx.stroke();
+
+      canvasCtx.restore();
     }
 
     canvasCtx.restore();
